@@ -168,6 +168,7 @@ Retrieved from https://libmonster.ru/m/files/get_file/3407.pdf
 Itself found from https://ru.wikipedia.org/wiki/%D0%A8%D0%B8%D1%84%D1%80_%D0%92%D0%98%D0%9A  
 Itself found from https://commons.wikimedia.org/wiki/File:Vic_step9.png  
 * note that the book says the last line "2 1 4" has the meaning "N U L L S"
+* note also book has error in line `23 69 4 0 8 67 63 8 69 8 19 63 20 7` instead reading `23 69 4 0 8 67 63 8 19 8 19 63 20 7`
 * copied using Okular and a search/replace to add lines back in
 ```
 9 69 20 63 69 61 19 20 12 23 61 25 4 13
@@ -206,7 +207,7 @@ Itself found from https://commons.wikimedia.org/wiki/File:Vic_step9.png
 о м м а т е р и . н/ц 444 н/ц . г
 4 23 23 61 15 61 5 61 13 4 19 11 15 4
 а м м ы в ы с ы л а т ь в а
-23 69 4 0 8 67 63 8 19 8 19 63 20 7
+23 69 4 0 8 67 63 8 69 8 19 63 20 7
 м р а н о . к о р о т к и е
 9 20 5 11 23 4 16 20 64 69 29 20 19 7
 п и с ь м а ш и ф р у и т е
