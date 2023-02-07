@@ -48,6 +48,8 @@ Book specifies that encipherment will be described.
 - First commit has many of the sections I'll be using (constants, command line, classes, functions, main, etc)
 - Also does preprocessing not directly mentioned by the book
 - And gets as far as swapping the halves of the message
+- Next implements the Checkerboard
+- Next implements the Transposition tables initial work, and some presentation
 
 # Keys
 Book states four keys:
