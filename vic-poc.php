@@ -5,14 +5,14 @@
 
 // Testing
 // Force random swap to happen at given pos; null for off
-define("TEST_RANDOM_SWAP_POS", 150);
+define("TEST_RANDOM_SWAP_POS", 148);
 // Plaintext must be uppercased first
-define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС 'В' И ПРОЧТЕНИЕ ПИСЬМА №1.
-2. ДЛЯ ОРГАНИЗАЦИИ ПРИКРЫТИЯ МЫ ДАЛИ УКАЗАНИЕ ПЕРЕДАТЬ ВАМ ТРИ ТЫСЯЧИ МЕСТНЫХ. ПЕPЕД ТЕМ КАК ИХ ВЛОЖИТЪ В КАКОЕ ЛИБО ДЕЛО ПОСОВЕТУЙTECB С НАМИ СООБЩИВ XAPAКТEPИСТИКУ ЭТОГО ДЕЛА
-3. ПО ВАШЕЙ ПРОСЬБЕ РЕЦЕПТУРУ ИЗГОТОВЛЕНИЯ МЯГКОЙ ПЛЕНКИ И НОВОСТЕЙ ПЕРЕДАДИМ ОТДЕЛЬНО ВМЕСТЕ С ПИСЬМОМ МАТЕРИ.
-4. ГАММЫ ВЫСЫЛТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУЙТЕ А ПОБОЛЬШЕ-ДЕЛАЙТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ МЕСТО РАБОТЫ АДРЕС И Т.Д. В ОДНОЙ ШИФPОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАЙТЕ ОТДЕЛЬНО.
-5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕЙ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕЙ.
-№1, 3 ДЕКАБРЯ.");
+define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС ,,В@В,, И ПРОЧТЕНИЕ ПИСЬМА №1.
+2. ДЛЯ ОРГАНИЗАЦИИ ПРИКРЫТИЯ МЫ ДАЛИ УКАЗАНИЕ ПЕРЕДАТЬ ВАМ ТРИ ТЫСЯЧИ МЕСТНЫХ. ПЕРЕД ТЕМ КАК ИХ ВЛОЖИТЬ В КАКОЕ ЛИБО ДЕЛО ПОСОВЕТУИТЕСЬ С НАМИ, СООБЩИВ ХАРАКТЕРИСТИКУ ЭТОГО ДЕЛА.
+3. ПО ВАШЕИ ПРОСЬБЕ РЕЦЕПТУРУ ИЗГОТОВЛЕНИЯ МЯГКОИ ПЛЕНКИ И НОВОСТЕИ ПЕРЕДАДИМ ОТДЕЛЬНО ВМЕСТЕ С ПИСЬМОМ МАТЕРИ.
+4. ГАММЫ ВЫСЫЛАТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУИТЕ, А ПОБОЛЬШЕТИРЕ ДЕЛАИТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ, МЕСТО РАБОТЫ, АДРЕС И Т.Д. В ОДНОИ ШИФРОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАИТЕ ОТДЕЛЬНО.
+5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕИ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕИ
+№1 ДРОБЬО 3 ДЕКАБРЯ");
 
 // Constants
 // Placeholders are needed to get single character control codes
@@ -57,9 +57,10 @@ if (ENCIPHER === true) {
   // Process plaintext
   $plaintext_numbers = encodeNumbers($plaintext);
   $plaintext_chopped = swapHalves($plaintext_numbers, TEST_RANDOM_SWAP_POS);
-  /* $plaintext_checkerboarded = $cb->checkerboardSubstitution($plaintext_chopped); */
+  $cb->skyhookNumbers(); // temporary code to add the coords not yet described
+  $plaintext_checkerboarded = $cb->checkerboardSubstitution($plaintext_chopped);
 
-  var_dump($plaintext_chopped);
+  var_dump($plaintext_checkerboarded);
 
 } else {
   // Decipher
@@ -75,6 +76,9 @@ exit;
 // Checkerboard class
 class Checkerboard {
   private $cb = null;
+  private $editable = true;
+  // Associative array such that it maps characters to their coords
+  private $cb_aarr = array();
 
   //
   // fillBody() takes an array of characters and places them in the checkerboard
@@ -124,6 +128,9 @@ class Checkerboard {
   // processing chars / key / usable alphabet / 'repeat' symbol. By using this
   // order we can arrange later characters around earlier ones, per the book
   function initialise($width, $height, $key, $alphabet, $others = null) {
+    // Unlock the class for editing (used to support a quick lookup)
+    $this->editable = true;
+
     // PHP doesn't have constrained arrays, so we'll fake one
     $this->cb = array_fill(0, $width, array_fill(0, $height, CHECKERBOARD_DEFAULT_VAL));
 
@@ -165,7 +172,75 @@ class Checkerboard {
       PLACEHOLDER_ПВТ;
   }
 
+  //
+  // Return the substitution for a single character
+  function checkerboardSubstituteOne($char) {
+    // Make lookups easier: first time through create an associative array and
+    // use that
+    if ($this->editable === true) {
+      $this->editable = false;
+
+      // Handle the top row with single digit coords
+      for($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
+	$c = $this->cb[1][$a];
+	if ($c !== CHECKERBOARD_DEFAULT_VAL) {
+	  $this->cb_aarr[$c] = $this->cb[0][$a];
+	}
+      }
+
+      // Handle the remaining rows with double digit coords
+      for ($row = 2; $row < VIC_CHECKERBOARD_HEIGHT; $row++) {
+	for($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
+	  $c = $this->cb[$row][$a];
+	  if ($c !== CHECKERBOARD_DEFAULT_VAL)
+	    $this->cb_aarr[$c] = $this->cb[$row][0] . $this->cb[0][$a];
+	}
+      }
+    }
+
+    // Digits are not substituted at all; otherwise the character is substituted
+    // per the associative array. Any remaining characters are silently dropped
+    $rv = '';
+    if ($char >= "0" && $char <= "9") {
+      $rv = $char . " ";
+
+    } else {
+      if (array_key_exists($char, $this->cb_aarr))
+	$rv = $this->cb_aarr[$char] . " ";
+    }
+    return ($rv);
+  }
+
+  //
+  // Return the substitution for a stream of text
   function checkerboardSubstitution($text) {
+    $output = '';
+    for ($idx = 0; $idx <= mb_strlen($text); $idx++) {
+      $c = mb_substr($text, $idx, 1);
+      $d = $this->checkerboardSubstituteOne($c);
+
+      $output .= $d;
+    }
+    return $output;
+  }
+
+  //
+  // Temporary until derivation code is available
+  function skyhookNumbers() {
+    $this->cb[0][1] = 5;
+    $this->cb[0][2] = 0;
+    $this->cb[0][3] = 7;
+    $this->cb[0][4] = 3;
+    $this->cb[0][5] = 8;
+    $this->cb[0][6] = 9;
+    $this->cb[0][7] = 4;
+    $this->cb[0][8] = 6;
+    $this->cb[0][9] = 1;
+    $this->cb[0][10] = 2;
+
+    $this->cb[2][0] = $this->cb[0][8];
+    $this->cb[3][0] = $this->cb[0][9];
+    $this->cb[4][0] = $this->cb[0][10];
   }
 }
 
