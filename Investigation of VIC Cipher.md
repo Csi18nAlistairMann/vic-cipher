@@ -50,6 +50,7 @@ Book specifies that encipherment will be described.
 - And gets as far as swapping the halves of the message
 - Next implements the Checkerboard
 - Next implements the Transposition tables initial work, and some presentation
+- Implement populating the transposition tables
 
 # Keys
 Book states four keys:
