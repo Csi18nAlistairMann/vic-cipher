@@ -1,4 +1,4 @@
-# Introduction 
+# Introduction
 
 Cryptonomicon (Stephenson 1999) mentions in a passage by Schneier that there's an interesting explanation of a Soviet system elsewhere. That elsewhere appears to be the chapter "Two Soviet Spy Ciphers" - a reprint of an 1960 article in Kahn On Codes (Kahn 1983). Of the two Ciphers mentioned one ("Abel") appears to be a One-time Pad cipher and so less interesting. The first though - the VIC Cipher - is described in such detail that I wonder if I could recreate it.
 
@@ -7,8 +7,8 @@ Alas I can't find an online copy of the chapter. While there are voluminous note
 # Measuring success
 - Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
 - Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
-- Can complete above from command line  
-- Optional: if I find other reimplementations, can exchange messages with them  
+- Can complete above from command line
+- Optional: if I find other reimplementations, can exchange messages with them
 I'm aware that there may be errors in the data I've used, so I'd like also to determine which if any are correct.
 
 # Process
@@ -16,32 +16,32 @@ I'm aware that there may be errors in the data I've used, so I'd like also to de
 Presented [below under "Figures"](#figures). Much were copy/pasted from articles found online and edited into shape. There appears occasional disagreement between the book and a source - any such highlighted as they arise.
 
 ## Capture keys
-[Shown here](#keys). 
+[Shown here](#keys).
 
 ## Process to encipher
 Book specifies that encipherment will be described.
 1. Create the checkerboard and transposition tables?
 1. Start with the message to encipher [given below](#russian) below.
 1. For each number in the text, replace it with Н/Ц, that number repeated three times, and Н/Ц again. So " 3 " would be replaced with " Н/Ц333Н/Ц ". I've changed "Н/Ц" and other such tokens to single character tokens such as "#" to assist in processing, but that may need changing in order to interact with others.
-1. Randomly chop the plaintext in two, take the second side first, append 'Н/Т', then append the first side 
-1. Substitution via checkerboard [given here](#Checkerboard)  
+1. Randomly chop the plaintext in two, take the second side first, append 'Н/Т', then append the first side
+1. Substitution via checkerboard [given here](#Checkerboard)
     1. Row 0 and Column 0 are both reserved for the coordinates to be added in later
-    1. To get the coord of a character in row 1 `СНЕГOПА`, only the top title is used. So E has the coordinate 7. 
-    1. In the remaining rows, use the left title before the top title. So B has the co-ordinate 15  
-    1. This gives us a stream starting 9 69 20 63 ... (See [Figure 2](#figure-2))  
-1. Pass through first transposition table 17 cols by N (See [Figure 3](#figure-3))  
-    1. First two rows how?  
-    1. Second row indicates which order to access for next step  
-    1. Take the stream from step 5 and fill in the first table from the third row moving left to right, top to bottom  
-1. Pass through second transposition table (See [Figure 4](#figure-4)) 
-    1. Construct the second transposition table   
-        - 14 cols by N. How?  
-    1. Fill in top two rows how?  
-    1. Create disruption areas based on "1" in second row, with area extending to right, and on following row starting one character to right, and so on. Once there are no more to move to right, skip a row, and repeat with "2" in the second row 
-        - Disruption starts right of * in each row
-    3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2" and so on.  
-    4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table  
-    5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.  
+    1. To get the coord of a character in row 1 `СНЕГOПА`, only the top title is used. So E has the coordinate 7.
+    1. In the remaining rows, use the left title before the top title. So B has the co-ordinate 15
+    1. This gives us a stream starting 9 69 20 63 ... (See [Figure 2](#figure-2))
+1. Pass through first transposition table 17 cols by N (See [Figure 3](#figure-3))
+    1. First two rows how?
+    1. Second row indicates which order to access for next step
+    1. Take the stream from step 5 and fill in the first table from the third row moving left to right, top to bottom
+1. Pass through second transposition table (See [Figure 4](#figure-4))
+    1. Construct the second transposition table
+	- 14 cols by N. How?
+    1. Fill in top two rows how?
+    1. Create disruption areas based on "1" in second row, with area extending to right, and on following row starting one character to right, and so on. Once there are no more to move to right, skip a row, and repeat with "2" in the second row
+	- Disruption starts right of * in each row
+    3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2" and so on.
+    4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table
+    5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.
 1. Construct the output stream, reading down the "1" column from the second transposition table, ignoring disruptor space, and taking five digits at a time.
 
 # Writing code
@@ -52,7 +52,7 @@ Book specifies that encipherment will be described.
 # Keys
 Book states four keys:
 1. The Russian word for snowfall: СНЕГOПА
-1. Part of a folk song: The first 20 letters of the third line of ["The Lone Accordion" by Korovyeff](https://lyricstranslate.com/en/odinokaya-garmon039-odinokaya-garmon-lonely-accordion.html): "ТОЛЬКО СЛЫШНО НА УЛИЦЕ Г" 
+1. Part of a folk song: The first 20 letters of the third line of ["The Lone Accordion" by Korovyeff](https://lyricstranslate.com/en/odinokaya-garmon039-odinokaya-garmon-lonely-accordion.html): "ТОЛЬКО СЛЫШНО НА УЛИЦЕ Г"
 1. A patriotic date: 3/9/1945 ([3rd Sept 1945 Russian VoJ date](https://ru.wikisource.org/wiki/%D0%A3%D0%BA%D0%B0%D0%B7_%D0%9F%D1%80%D0%B5%D0%B7%D0%B8%D0%B4%D0%B8%D1%83%D0%BC%D0%B0_%D0%92%D0%A1_%D0%A1%D0%A1%D0%A1%D0%A0_%D0%BE%D1%82_2.09.1945_%D0%BE%D0%B1_%D0%BE%D0%B1%D1%8A%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8_3_%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8F_%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D0%B8%D0%BA%D0%BE%D0%BC_%D0%BF%D0%BE%D0%B1%D0%B5%D0%B4%D1%8B_%D0%BD%D0%B0%D0%B4_%D0%AF%D0%BF%D0%BE%D0%BD%D0%B8%D0%B5%D0%B9))
 1. A number: 13
 
@@ -101,45 +101,47 @@ https://wikimedia.org/api/rest_v1/media/math/render/svg/b5ae818af4e8939265507622
 Edited from https://cryptome.org/2013/05/kahn-moscow-cipher.pdf to match book. The VIC Cipher does not use English at any point, so it's reprinted here for interest.
 ```
 1. We congratulate you on [your] safe arrival. We confirm the receipt of your letter to the address "V repeat V" and the reading of [your] letter No. 1.
-2. For organization of cover we have given instructions to transmit to you three thousand in local [currency]. Consult with us prior to investing it in any kind of business advising the character
-of the business.
-3. According to your request we will transmit the formula for the preparation of soft film and the news separately together with [your] mother's letter.
-4. [It is too] early to send you the gammas. Encipher short letters but do the longer ones with insertions. All the data about yourself place of work address etc. must not be transmitted in
-one cipher message. Transmit lnsertions separately.
-5. The package was delivered to [your] wife personally. Everything is all right with [your] family. We wish [you] success. Greetings from the comrades.
-No. 1 3 December.
+2. For organization of cover we have given instructions to transmit to you three thousand in local [currency]. Consult with us prior to investing it in any kind of business advising the character of the business.
+3. According to your request we will transmit the formula for the preparation of soft film and the news separately, together with [your] mother's letter.
+4. [It is too] early to send you the gammas. Encipher short letters, but do the longer ones with insertions. All the data about yourself, place of work, address, etc., must not be transmitted in one cipher message. Transmit insertions separately.
+5. The package was delivered to [your] wife personally. Everything is all right with [your] family. We wish [you] success. Greetings from the comrades. No. 1, 3 December.
 ```
 
 ### Russian
 No online source already found so I pasted the above English into translate.google.com then copied the Russian and edited to match the book, double-checking that it reasonably translated back into English. Also passed through https://www.russiantools.com/en/convert-russian-case-uppercase.
-
+* The following is the text in Figure 2 rather than the message written out in the article, then checked again at Google translate
+* In No. 1, '@' is used as the `ПВТ` code in order to match Figure 2
+* `ДРОБЬО` in No. 5 should possibly have been `ДРОБЬ` meaning 'Fraction' which does fit the book stating "№1/03"
 ```
-1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС "В" И ПРОЧТЕНИЕ ПИСЬМА №1.
-2. ДЛЯ ОРГАНИЗАЦИИ ПРИКРЫТИЯ МЫ ДАЛИ УКАЗАНИЕ ПЕРЕДАТЬ ВАМ ТРИ ТЫСЯЧИ МЕСТНЫХ. ПЕPЕД ТЕМ КАК ИХ ВЛОЖИТЪ В КАКОЕ ЛИБО ДЕЛО ПОСОВЕТУЙTECB С НАМИ СООБЩИВ XAPAКТEPИСТИКУ ЭТОГО ДЕЛА     
-3. ПО ВАШЕЙ ПРОСЬБЕ РЕЦЕПТУРУ ИЗГОТОВЛЕНИЯ МЯГКОЙ ПЛЕНКИ И НОВОСТЕЙ ПЕРЕДАДИМ ОТДЕЛЬНО ВМЕСТЕ С ПИСЬМОМ МАТЕРИ.
-4. ГАММЫ ВЫСЫЛТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУЙТЕ А ПОБОЛЬШЕ-ДЕЛАЙТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ МЕСТО РАБОТЫ АДРЕС И Т.Д. В ОДНОЙ ШИФPОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАЙТЕ ОТДЕЛЬНО.
-5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕЙ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕЙ.
-№1, 3 ДЕКАБРЯ.
+1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС ,,В@В,, И ПРОЧТЕНИЕ ПИСЬМА №1.
+2. ДЛЯ ОРГАНИЗАЦИИ ПРИКРЫТИЯ МЫ ДАЛИ УКАЗАНИЕ ПЕРЕДАТЬ ВАМ ТРИ ТЫСЯЧИ МЕСТНЫХ. ПЕРЕД ТЕМ КАК ИХ ВЛОЖИТЬ В КАКОЕ ЛИБО ДЕЛО ПОСОВЕТУИТЕСЬ С НАМИ, СООБЩИВ ХАРАКТЕРИСТИКУ ЭТОГО ДЕЛА.
+3. ПО ВАШЕИ ПРОСЬБЕ РЕЦЕПТУРУ ИЗГОТОВЛЕНИЯ МЯГКОИ ПЛЕНКИ И НОВОСТЕИ ПЕРЕДАДИМ ОТДЕЛЬНО ВМЕСТЕ С ПИСЬМОМ МАТЕРИ.
+4. ГАММЫ ВЫСЫЛАТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУИТЕ, А ПОБОЛЬШЕТИРЕ ДЕЛАИТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ, МЕСТО РАБОТЫ, АДРЕС И Т.Д. В ОДНОИ ШИФРОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАИТЕ ОТДЕЛЬНО.
+5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕИ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕИ
+№1 ДРОБЬО 3 ДЕКАБРЯ
 ```
 
 #### Russian back to English
-That the above is accurate were confirmed at translate.google.com and bing.com/translator.   
+That the above is accurate were confirmed at translate.google.com and bing.com/translator.
 * Note at 1: "B" translates to English as "V"
 * At 3: the second sentence is dramatically different when guessed from the English. Spelling out the original Russian comes back with the expected translation, so no problem
 * At 4: The "gammas" seem to translate as scales
+* At 5: `DROBIO` is a mistranslation as noted in the Russian above
+
 ```
-1. Congratulations on your safe arrival. We confirm receipt of your letter to address "B" and reading letter No. 1.
-2. To organize a cover we instructed to hand over to you three thousand locals. Before investing them in any business consult with us reporting the characteristics of this case.
-3. At your request we will hand over the recipe for making soft film and news separately along with a letter to mother.
-4. Scales will be sent to you early. Encrypt short letters and do more with inserts. All data about yourself place of work address etc. cannot be transmitted in one encryption. Transfer inserts separately.
-5. The parcel was handed over to my wife personally. All is well with the family. We wish you success. Hello from comrades.
-No. 1 December 3.
+1. CONGRATULATIONS ON A SAFE ARRIVAL. WE CONFIRM THE RECEIVING OF YOUR LETTER TO THE ADDRESS ,,В@В, AND READING LETTERS #1.
+2. TO ORGANIZE THE COVER WE INSTRUCTED TO TRANSFER YOU THREE THOUSAND LOCAL. BEFORE INVESTING THEM IN ANY BUSINESS ADVICE
+BE WITH US, INFORMING THE CHARACTERISTIC OF THIS CASE.
+3. AT YOUR REQUEST, THE RECIPE FOR PRODUCING SOFT FILM AND THE NEWS WILL BE GIVEN SEPARATELY TOGETHER WITH A LETTER TO MOTHER.
+4. GAMMA SEND YOU EARLY. SHORT LETTERS ENCRYPT, AND MORE LARGE DO WITH INSERT. ALL DATA ABOUT YOURSELF, PLACE OF WORK, ADDRESS AND T.D. IT IS NOT POSSIBLE TO TRANSMIT IN ONE ENCRYPTION. PLEASE TRANSMIT THE INSERTS SEPARATELY.
+5. THE PARCEL IS PASSED TO THE WIFE PERSONALLY. EVERYTHING IS GOOD WITH THE FAMILY. WE WISH YOU SUCCESS. GREETINGS FROM COMRADES
+№1 DROBIO 3 DECEMBER
 ```
 
 ## Checkerboard
 The checkerboard allows individual characters to be converted to coords
 * If the character appears along the top row (`СНЕГОПА`) the coord used is the number directly above, so `С` has coord 5
-* Otherwise the coord is the lefthand number THEN the number above, so `К` has coord 63  
+* Otherwise the coord is the lefthand number THEN the number above, so `К` has coord 63
 Created by hand from book copy/pasting cyrillic from https://www.russianlessons.net/lessons/lesson1_alphabet.php
 * Start with a 11x5 grid, with top row and left column reserved for later
 * Fill the third column top to bottom with full stop, comma, П/Л ('pl')
@@ -163,10 +165,10 @@ Will eventually use titles, where the last three numbers along the top row are u
 ```
 
 ## Figure 2
-States the stream of coords obtained by passing the plaintext through the checkerboard  
-Retrieved from https://libmonster.ru/m/files/get_file/3407.pdf  
-Itself found from https://ru.wikipedia.org/wiki/%D0%A8%D0%B8%D1%84%D1%80_%D0%92%D0%98%D0%9A  
-Itself found from https://commons.wikimedia.org/wiki/File:Vic_step9.png  
+States the stream of coords obtained by passing the plaintext through the checkerboard
+Retrieved from https://libmonster.ru/m/files/get_file/3407.pdf
+Itself found from https://ru.wikipedia.org/wiki/%D0%A8%D0%B8%D1%84%D1%80_%D0%92%D0%98%D0%9A
+Itself found from https://commons.wikimedia.org/wiki/File:Vic_step9.png
 * note that the book says the last line "2 1 4" has the meaning "N U L L S"
 * note also book has error in line `23 69 4 0 8 67 63 8 69 8 19 63 20 7` instead reading `23 69 4 0 8 67 63 8 19 8 19 63 20 7`
 * copied using Okular and a search/replace to add lines back in
@@ -266,7 +268,7 @@ No н/ц 111 н/ц д р о б ь 0 н/ц 333 н/ц д
 ```
 
 ## Figure 3
-First transposition tableau  
+First transposition tableau
 - same source as figure 2
 ```
 9 6 0 3 3 1 8 3 6 6 4 6 9 0 4 7 5
@@ -336,10 +338,10 @@ First transposition tableau
 ```
 
 ## Figure 4
-Second transposition tableau  
-- same source as figure 2  
-- the disruption areas are marked with a " * " before they start  
-- note [9] halfway down. In the book that's a 5. There may be others   
+Second transposition tableau
+- same source as figure 2
+- the disruption areas are marked with a " * " before they start
+- note [9] halfway down. In the book that's a 5. There may be others
 ```
 3 0 2 7 4 3 0 4 2 8 7 7 1 2
 5 13 2 9 7 6 14 8 3 12 10 11 1 4
@@ -425,12 +427,12 @@ Copied by hand from book
 ```
 Line A  2 0 8 1 8
 Line B  3 9 1 9 4
-        ---------
+	---------
 Line C  9 1 7 2 4
 ```
 
 ## Line G
-Same source as figure 2  
+Same source as figure 2
 Edited to match book
 ```
 Line D  Т О Л Ь К О С Л Ы Ш | Н О Н А У Л И Ц Е Г
@@ -439,9 +441,9 @@ Line G  6 5 9 2 5 5 4 2 5 2
 ```
 
 ## Line P
-Same source as figure 2  
-Edited to match book  
-- note Line J doesn't appear in source but does in book  
+Same source as figure 2
+Edited to match book
+- note Line J doesn't appear in source but does in book
 ```
 Line H  5 9 3 8 9 9 1 8 9 8
 Line J  3 7 2 4 8 9 1 5 0 6
@@ -454,20 +456,20 @@ Line P  4 0 6 2 7 8 3 4 1 1
 ```
 
 ## Line R
-Same source as figure 2  
-Edited to match book  
+Same source as figure 2
+Edited to match book
 ```
 Line Q  9 6 0 3 3 1 8 3 6 6 4 6 9 0 4 7 5
 Line R  3 0 2 7 4 3 0 4 2 8 7 7 1 2
 ```
 
 ## Line S
-Same source as figure 2  
-Edited to match book  
+Same source as figure 2
+Edited to match book
 ```
 Line P  4 0 6 2 7 8 3 4 1 1
 Line S  5 0 7 3 8 9 4 6 1 2
-``` 
+```
 
-# Links  
+# Links
 - During research I did find https://www.cia.gov/static/7799f1d576b09d8bce07988c635725db/Number-One-From-Moscow.pdf which specifies at the bottom "This article is based on the author's booklet Two Soviet Spy Ciphers".
