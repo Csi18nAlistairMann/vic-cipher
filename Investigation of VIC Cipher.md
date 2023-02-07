@@ -43,6 +43,7 @@ Book specifies that encipherment will be described.
     4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table
     5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.
 1. Construct the output stream, reading down the "1" column from the second transposition table, ignoring disruptor space, and taking five digits at a time.
+1. Insert a keygroup (20818) to be the fifth group before message ends
 
 # Writing code
 - First commit has many of the sections I'll be using (constants, command line, classes, functions, main, etc)

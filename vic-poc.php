@@ -35,6 +35,7 @@ define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
+define('MYSTERY_KEYGROUP', 20818); // There are ten Groups of 5 per row
 
 // Handle command line
 // Forced for now
@@ -72,7 +73,7 @@ if (ENCIPHER === true) {
   $plaintext_transposed1 = $tt1->getTransposed();
   $tt2->fillTableaux($plaintext_transposed1);
   $plaintext_transposed2 = $tt2->getTransposed();
-  $ciphertext = fiveGroups($plaintext_transposed2);
+  $ciphertext = fiveGroups($plaintext_transposed2, MYSTERY_KEYGROUP);
   // At this point the ciphertext is based on skyhooked 2nd transposition
   var_dump($ciphertext);
 
@@ -435,12 +436,20 @@ class Checkerboard {
 //
 // Prepare the final ciphertext for output by grouping into groups of five
 // with ten such groups per row
-function fiveGroups($stream) {
+function fiveGroups($stream, $keygroup) {
   // Construct the groups of five
   $page = array();
   for ($idx = 0; $idx < strlen($stream); $idx += FIVEGROUP_NUM) {
     $page[] = substr($stream, $idx, FIVEGROUP_NUM);
   }
+
+  // Bodge in 20818 keygroup as the fifth from last group. Book is unclear
+  // how this arrived at other than to say "A keygroup is inserted at a
+  // prearranged point before the final message is sent."
+  $sz = sizeof($page);
+  $page = array_merge(array_slice($page, 0, $sz - 4),
+		      array($keygroup),
+		      array_slice($page, $sz - 4));
 
   // Construct the output - spaces follows each except last which has \n
   $output = '';
