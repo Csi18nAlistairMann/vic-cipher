@@ -24,6 +24,7 @@ define("PLACEHOLDER_№", '&'); // Literally No.
 
 define("RU_ALPHABET", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ");
 define("RU_ALPHABET_IGNORE", "ЁЙЪ");
+define("NUMERIC_ALPHABET", "1234567890"); // Single digit conversion sequences
 define("VIC_CHECKERBOARD_WIDTH", 11);
 define("VIC_CHECKERBOARD_HEIGHT", 5);
 define("CHECKERBOARD_OTHERS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
@@ -35,14 +36,14 @@ define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
-define('MYSTERY_KEYGROUP', 20818); // There are ten Groups of 5 per row
+define('MESSAGE_NUMBER_KEYGROUP', "20818"); // Different group each message
 
 // Handle command line
 // Forced for now
 $key1 = "СНЕГОПА";
 $key2 = keyFromPoem(3); // 3 for third line
-$key3 = "3/9/1945"; // Not sure structure just yet
-$key4 = 13;
+$key3 = "3/9/1945"; // Just the digits are used
+$key4 = 13; // Agent's personal identifier
 
 $alphabet = RU_ALPHABET;
 $alphabet_ignore = RU_ALPHABET_IGNORE;
@@ -54,27 +55,32 @@ $alphabet_usable = constructAcceptableAlphabet($alphabet, $alphabet_ignore);
 
 // Set up tables
 $cb = new Checkerboard();
-$tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1);
-$tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2);
+$d = new Derivations($alphabet_usable, $key1, $key2, $key3, $key4,
+		     MESSAGE_NUMBER_KEYGROUP);
+$tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1, $d->getWidthTableaux1(),
+				 $d->getTableaux1Breeder());
+$tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2, $d->getWidthTableaux2(),
+				 $d->getTableaux2Breeder());
 $cb->initialise(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH, $key1,
-		$alphabet_usable, CHECKERBOARD_OTHERS);
+		$alphabet_usable, CHECKERBOARD_OTHERS,
+		$d->getCheckerboardBreeder());
 
 if (ENCIPHER === true) {
   // Encipher
   // Process plaintext
   $plaintext_numbers = encodeNumbers($plaintext);
   $plaintext_chopped = swapHalves($plaintext_numbers, TEST_RANDOM_SWAP_POS);
-  $cb->skyhookNumbers(); // temporary code to add the coords not yet described
   $plaintext_checkerboarded = $cb->checkerboardSubstitution($plaintext_chopped);
-  // At this point the character stream is short the final "214"
-  $tt1->skyhookNumbers(); // temporary code to add the tableaux headers
+  // Bodged? Height is int(cipher_length / table width). Does that interact
+  // with the disruption areas properly?
+  $cipher_length = strlen($plaintext_checkerboarded);
+  $tt2->setCipherLength($cipher_length);
   $tt1->fillTableaux($plaintext_checkerboarded);
-  $tt2->skyhookNumbers(); // temporary code to add the tableaux headers
   $plaintext_transposed1 = $tt1->getTransposed();
   $tt2->fillTableaux($plaintext_transposed1);
   $plaintext_transposed2 = $tt2->getTransposed();
-  $ciphertext = fiveGroups($plaintext_transposed2, MYSTERY_KEYGROUP);
-  // At this point the ciphertext is based on skyhooked 2nd transposition
+  $ciphertext = fiveGroups($plaintext_transposed2, MESSAGE_NUMBER_KEYGROUP,
+			   $d->getArbKeygroupPosition());
   var_dump($ciphertext);
 
 } else {
@@ -88,6 +94,136 @@ exit;
 //
 
 //
+// Derivations class uses the factors known to the agent to reconstruct the
+// constants used in creating the cipher system: positions, widths, and
+// breeders.
+class Derivations {
+  private $arbKeygroupPosition;
+  private $width_tableux_1;
+  private $width_tableux_2;
+  private $tableaux1_breeder;
+  private $tableaux2_breeder;
+  private $checkerboard_breeder;
+
+  // All factors are available at the start
+  function __construct($alphabet, $word, $poem, $date, $id, $msg_num) {
+    // The "date" key is used twice, first to indicate the position from the
+    // end at which the message number is to be inserted, and then develop
+    // to Line C
+    $this->date = '';
+    for ($a = 0; $a < mb_strlen($date); $a++) {
+      if ($date[$a] >= "0" && $date[$a] <= "9")
+	$this->date .= $date[$a];
+    }
+    $this->arbKeygroupPosition = $this->date[5];
+
+    // Upto Line C
+    // 20818+39194=91724
+    // Message number + first part of date = 91724
+    // chain addition 91724 out to ten digits 9172408964
+    $linec = array();
+    for ($a = 0; $a < 5; $a++) {
+      $linec[$a] = ($msg_num[$a] - $this->date[$a]) % 10;
+      if ($linec[$a] < 0)
+	$linec[$a] += 10;
+    }
+    $lineCca = chainAddition($linec, 10);
+
+    // Upto Line H
+    // Divide poem in two & obtain each's sequence conversion
+    $poeml = mb_substr($poem, 0, 10);
+    $poemr = mb_substr($poem, 10, 10);
+    $lineEl = simpleConvert2Sequential($alphabet, $poeml);
+    $lineEr = simpleConvert2Sequential($alphabet, $poemr);
+
+    // G = (C + El) % 10
+    $lineG = array_fill(0, 10, '');
+    for ($a = 0; $a < 10; $a++) {
+      $lineG[$a] = ($lineCca[$a] + $lineEl[$a]) % 10;
+    }
+
+    // H = G mapped to Er - poem right side seq.conv.
+    $this->lineH = array_fill(0, 10, '');
+    for ($a = 0; $a < 10; $a++) {
+      $this->lineH[$a] = $lineEr[$lineG[$a] - 1];
+    }
+
+    // Upto Line J
+    // J = sequential key to H
+    $lineJ = simpleConvert2Sequential(NUMERIC_ALPHABET, $this->lineH);
+
+    // Upto Lines K-P
+    // Use Line H to get a temporary table I've called k2p_cube,
+    $k2p_stream = chainAddition($this->lineH, 60);
+    $this->k2p_cube = array();
+    for ($a = 0; $a < 6; $a++) {
+      $this->k2p_cube[] = array_slice($k2p_stream, $a * 10, 10);
+    }
+
+    // Use the k2p_cube with the agent's ID to determine the widths
+    $this->width_tableaux_1 = ($id + $this->k2p_cube[5][8 - 1]);
+    $this->width_tableaux_2 = ($id + $this->k2p_cube[5][9 - 1]);
+    $both_widths = $this->width_tableaux_1 + $this->width_tableaux_2;
+
+    // Upto Lines Q, R
+    // Obtain a stream using the columns in sequence order
+    $qnr = array();
+    $idx = 1;
+    do {
+      for ($a = 0; $a < 10; $a++) {
+	if ($lineJ[$a] === $idx) {
+	  for ($b = 1; $b < 6; $b++) {
+	    $qnr[] = $this->k2p_cube[$b][$a];
+	  }
+	}
+      }
+      $idx++;
+    } while(sizeof($qnr) < $both_widths);
+
+    // Use that stream to create the breeders for both tableaux
+    $this->tableaux1_breeder = array_slice($qnr, 0, $this->width_tableaux_1);
+    $this->tableaux2_breeder = array_slice($qnr, $this->width_tableaux_1,
+					   $this->width_tableaux_2);
+
+    // Upto Line S
+    // And finally use the last row of the k2p_cube to form a conversion
+    // sequence which will populate the checkerboard's breeder
+    $this->checkerboard_breeder = simpleConvert2Sequential(NUMERIC_ALPHABET,
+						     $this->k2p_cube[5]);
+  }
+
+  // 20818 gets placed where
+  function getArbKeygroupPosition() {
+    return $this->arbKeygroupPosition;
+  }
+
+  // 96033...
+  function getTableaux1Breeder() {
+    return $this->tableaux1_breeder;
+  }
+
+  // 30274 ...
+  function getTableaux2Breeder() {
+    return $this->tableaux2_breeder;
+  }
+
+  // 17 ...
+  function getWidthTableaux1() {
+    return $this->width_tableaux_1;
+  }
+
+  // 14 ...
+  function getWidthTableaux2() {
+    return $this->width_tableaux_2;
+  }
+
+  // 50738...
+  function getCheckerboardBreeder() {
+    return $this->checkerboard_breeder;
+  }
+}
+
+//
 // TranspositionTableux class
 // VIC Cipher uses two - this class implements both
 //  Type 1 is the straightforward Figure 3 table
@@ -96,6 +232,8 @@ class TranspositionTableaux {
   private $type;
   private $tableaux;
   private $disruption;
+  private $width;
+  private $height;
 
   //
   // Type 2 tableaux have disruption areas: calculate where they should be and
@@ -111,18 +249,17 @@ class TranspositionTableaux {
   // - when 0 disrupted area is seen in a row, the next disruption starts
   //   where row[2] has the value 2
   function generateDisruptionData() {
-    $width = 14; // temporary code
     $col = 1;
     $row = 2;
     // Traverse the columns in order 1, 2, ... N
     do {
       $found = false;
       // Is this the column N?
-      for($a = 0; $a < $width; $a++) {
+      for($a = 0; $a < $this->width; $a++) {
 	if ($this->tableaux[1][$a] === $col) {
 	  // Yes it is. $a starts the disruption data
 	  $found = true;
-	  for ($b = $a; $b < $width + 1; $b++) {
+	  for ($b = $a; $b < $this->width + 1; $b++) {
 	    $this->disruption[$row++] = $b;
 	  }
 	}
@@ -137,24 +274,21 @@ class TranspositionTableaux {
   function fillTableaux($stream) {
     if ($this->type === TABLEAUX_TYPE_1) {
       // Straight forward left to right, top to bottom
-      $width = 17; // Temporary bodge
       $stream_idx = 0;
       $row = 2;
 
       do {
-	$line = substr($stream, $stream_idx, $width);
+	$line = substr($stream, $stream_idx, $this->width);
 	for($a = 0; $a < strlen($line); $a++) {
 	  $this->tableaux[$row][$a] = intval(substr($line, $a, 1));
 	}
 	$row++;
-	$stream_idx += $width;
+	$stream_idx += $this->width;
       } while ($stream_idx < strlen($stream));
 
     } elseif ($this->type === TABLEAUX_TYPE_2) {
       // Not so straightforward: left to right, top to bottom in the areas
       // without disruption, then repeat in the areas with disruption
-      $width = 14; // Temporary bodge
-      $height = 75; // Temporary bodge
       $stream_idx = 0;
       $row = 2;
 
@@ -167,53 +301,38 @@ class TranspositionTableaux {
 	}
 	$stream_idx += $this->disruption[$row];
 	$row++;
-      } while ($stream_idx < strlen($stream) && ($row <= $height));
+      } while ($stream_idx < strlen($stream) && ($row <= $this->height));
 
       // Disrupted areas second
       $row = 2;
       do {
-	$line = substr($stream, $stream_idx, $width - $this->disruption[$row]);
+	$line = substr($stream, $stream_idx, $this->width - $this->disruption[$row]);
 	for($a = 0; $a < strlen($line); $a++) {
 	  $this->tableaux[$row][$this->disruption[$row] + $a] =
 	    intval(substr($line, $a, 1));
 	}
-	$stream_idx += $width - $this->disruption[$row];
+	$stream_idx += $this->width - $this->disruption[$row];
 	$row++;
-      } while ($stream_idx < strlen($stream) && ($row <= $height));
+      } while ($stream_idx < strlen($stream) && ($row <= $this->height));
     }
   }
 
-  function __construct($type) {
+  function __construct($type, $width, $breeder) {
     $this->type = $type;
-    $this->tableaux = array();
+    $this->tableaux = array($breeder); // row[0]
+    $this->tableaux[] = bigConvert2Sequential($this->tableaux[0]); // row[1]
     $this->disruption = array();
-  }
-
-  function skyhookNumbers() {
-    if ($this->type === TABLEAUX_TYPE_1) {
-      $width = 17;
-      $data = array(9, 6, 0, 3, 3, 1, 8, 3, 6, 6, 4, 6, 9, 0, 4, 7, 5,
-		    14, 8, 16, 2, 3, 1, 13, 4, 9, 10, 5, 11, 15, 17, 6, 12, 7);
-
-    } elseif ($this->type === TABLEAUX_TYPE_2) {
-      $width = 14;
-      $data = array(3, 0, 2, 7, 4, 3, 0, 4, 2, 8, 7, 7, 1, 2,
-		    5, 13, 2, 9, 7, 6, 14, 8, 3, 12, 10, 11, 1, 4);
-    } else {
-      // unhandled error
-    }
-
-    // Create a multidimensional array to hold the above
-    $idx = 0;
-    while($idx < sizeof($data)) {
-      $row = array_slice($data, $idx, $width);
-      $this->tableaux[] = $row;
-      $idx += $width;
-    }
+    $this->width = intval($width);
 
     if ($this->type === TABLEAUX_TYPE_2) {
       $this->generateDisruptionData();
     }
+  }
+
+  // We don't need the length, but we do need the height based on the length
+  function setCipherLength($length) {
+    // +2 to accomodate breeder lines
+    $this->height = intval($length / $this->width) + 2;
   }
 
   //
@@ -307,7 +426,7 @@ class Checkerboard {
   // initialise() does the initial set up of the checkerboard in this order
   // processing chars / key / usable alphabet / 'repeat' symbol. By using this
   // order we can arrange later characters around earlier ones, per the book
-  function initialise($width, $height, $key, $alphabet, $others = null) {
+  function initialise($width, $height, $key, $alphabet, $others, $breeder) {
     // Unlock the class for editing (used to support a quick lookup)
     $this->editable = true;
 
@@ -350,6 +469,14 @@ class Checkerboard {
     // And end with the final "repeat" symbol
     $this->cb[VIC_CHECKERBOARD_HEIGHT - 1][VIC_CHECKERBOARD_WIDTH - 1] =
       PLACEHOLDER_ПВТ;
+
+    // Now use the breeder to populate the top and left
+    for ($a = 1; $a <= 10; $a++) {
+      $this->cb[0][$a] = $breeder[$a - 1];
+    }
+    $this->cb[2][0] = $this->cb[0][8];
+    $this->cb[3][0] = $this->cb[0][9];
+    $this->cb[4][0] = $this->cb[0][10];
   }
 
   //
@@ -408,25 +535,6 @@ class Checkerboard {
     $output .= '214'; // Bodge as book doesn't indicate how NULLS arrived at
     return $output;
   }
-
-  //
-  // Temporary until derivation code is available
-  function skyhookNumbers() {
-    $this->cb[0][1] = 5;
-    $this->cb[0][2] = 0;
-    $this->cb[0][3] = 7;
-    $this->cb[0][4] = 3;
-    $this->cb[0][5] = 8;
-    $this->cb[0][6] = 9;
-    $this->cb[0][7] = 4;
-    $this->cb[0][8] = 6;
-    $this->cb[0][9] = 1;
-    $this->cb[0][10] = 2;
-
-    $this->cb[2][0] = $this->cb[0][8];
-    $this->cb[3][0] = $this->cb[0][9];
-    $this->cb[4][0] = $this->cb[0][10];
-  }
 }
 
 //
@@ -434,22 +542,116 @@ class Checkerboard {
 //
 
 //
+// Using array X to create a sequence containing 1..N
+// but where "1" appears at the position the 'earliest' element of
+// X appears at. Examples:
+//
+// Simple examples (simple because can be done with ascii)
+// BABY = 2134
+//  A is the first to appear in the alphabet so gets 1
+//  B is the second to appear in the alphabet so gets 2
+//   second B gets 3
+//  Y is the fourth to appear in the alphabet so gets 4
+//
+// 7181 = 3142
+//  1 is the first to appear in 1234567890, so gets 1
+//  1 is the second to appear, so gets 2
+//  7 is the third to appear, so gets 3
+//  8 is the last to appear so gets 4
+//
+// Complex examples (Potentially requires more than ascii)
+// 1792 2 18 2 = 3142
+//  2 is the first to appear, so gets 1
+//  2 is the second to appear, so gets 2
+//  1792 is the third to appear, so gets 3
+//  18 is the last to appear so gets 4
+//
+// Most uses of convering to sequences works conveniently on elements
+// from 0 - 9 or on no more than ten alphabetic characters.  This first
+// function handles these
+function simpleConvert2Sequential($alphabet, $string) {
+  if (is_array($string)) {
+    $nustring = '';
+    for ($a = 0; $a < sizeof($string); $a++)
+      $nustring .= $string[$a];
+    $string = $nustring;
+  }
+
+  $rv = array_fill(0, 10, 0);
+  $nextnum = 1;
+  // Loop through standard alphabet
+  for ($a = 0; $a < mb_strlen($alphabet); $a++) {
+    // Loop through string.
+    for ($b = 0; $b < mb_strlen($string); $b++) {
+      // If there's a match, assign next number % 10
+      if (mb_substr($string, $b, 1) === mb_substr($alphabet, $a, 1)) {
+	$rv[$b] = ($nextnum) % 10;
+	$nextnum++;
+      }
+    }
+  }
+  return $rv;
+}
+
+//
+// The tableaux being wider than ten characters needs a more powerful
+// approach
+function bigConvert2Sequential($num_arr) {
+  // Find the maximum value used
+  $sz = sizeof($num_arr);
+  $max = 0;
+  for ($a = 1; $a < $sz; $a++) {
+    if ($num_arr[$a] === 0)
+      $num_arr[$a] = 10; // numeric alphabet has 0 after 9
+    if ($num_arr[$a] > $max)
+      $max = $num_arr[$a];
+  }
+
+  // Brute forced, could probably be improved for genuinely large numbers
+  $rv = array_fill(0, $sz, 0);
+  $nextnum = 1;
+  // Loop up from 0 to max
+  for ($a = 0; $a <= $max; $a++) {
+    // Loop through num_arr for anyone matching.
+    for ($b = 0; $b < $sz; $b++) {
+      // If there's a match, assign next number
+      if ($num_arr[$b] === $a) {
+	$rv[$b] = $nextnum;
+	$nextnum++;
+      }
+    }
+  }
+  return $rv;
+}
+
+//
+// Derive an arbitrarily long number from a shorter one
+function chainAddition($digits_arr, $length) {
+  $idx = 0;
+  do {
+    $digits_arr[] = ($digits_arr[$idx] + $digits_arr[$idx + 1]) % 10;
+    $idx++;
+  } while (sizeof($digits_arr) < $length);
+
+  return $digits_arr;
+}
+
+//
 // Prepare the final ciphertext for output by grouping into groups of five
 // with ten such groups per row
-function fiveGroups($stream, $keygroup) {
+function fiveGroups($stream, $keygroup, $position) {
   // Construct the groups of five
   $page = array();
   for ($idx = 0; $idx < strlen($stream); $idx += FIVEGROUP_NUM) {
     $page[] = substr($stream, $idx, FIVEGROUP_NUM);
   }
 
-  // Bodge in 20818 keygroup as the fifth from last group. Book is unclear
-  // how this arrived at other than to say "A keygroup is inserted at a
-  // prearranged point before the final message is sent."
+  // Insert message number
   $sz = sizeof($page);
-  $page = array_merge(array_slice($page, 0, $sz - 4),
+  $position--;
+  $page = array_merge(array_slice($page, 0, $sz - $position),
 		      array($keygroup),
-		      array_slice($page, $sz - 4));
+		      array_slice($page, $sz - $position));
 
   // Construct the output - spaces follows each except last which has \n
   $output = '';

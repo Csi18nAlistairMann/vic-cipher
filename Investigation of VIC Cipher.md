@@ -5,7 +5,7 @@ Cryptonomicon (Stephenson 1999) mentions in a passage by Schneier that there's a
 Alas I can't find an online copy of the chapter. While there are voluminous notes online I'm challenging myself to use just the article's contents - now 63 years old. I'll permit cheating beyond this in the case of reusing typed-up figures and that suggests my first task: getting computer-readable copies of the data within. Such as I found [is below](#figures).
 
 # Measuring success
-- Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
+✓ Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
 - Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
 - Can complete above from command line
 - Optional: if I find other reimplementations, can exchange messages with them
@@ -20,7 +20,9 @@ Presented [below under "Figures"](#figures). Much were copy/pasted from articles
 
 ## Process to encipher
 Book specifies that encipherment will be described.
-1. Create the checkerboard and transposition tables?
+1. Create derivations from keys
+1. Create the transposition tables
+1. Create the checkerboard table
 1. Start with the message to encipher [given below](#russian) below.
 1. For each number in the text, replace it with Н/Ц, that number repeated three times, and Н/Ц again. So " 3 " would be replaced with " Н/Ц333Н/Ц ". I've changed "Н/Ц" and other such tokens to single character tokens such as "#" to assist in processing, but that may need changing in order to interact with others.
 1. Randomly chop the plaintext in two, take the second side first, append 'Н/Т', then append the first side
@@ -28,22 +30,21 @@ Book specifies that encipherment will be described.
     1. Row 0 and Column 0 are both reserved for the coordinates to be added in later
     1. To get the coord of a character in row 1 `СНЕГOПА`, only the top title is used. So E has the coordinate 7.
     1. In the remaining rows, use the left title before the top title. So B has the co-ordinate 15
-    1. This gives us a stream starting 9 69 20 63 ... (See [Figure 2](#figure-2))
+    1. This gives us a stream starting 9 69 20 63 ... (See [Figure 2](#figure-2)), each digit to be handled individually, so: 9 6 9 2 0 6 3 ...
+1. Establish the height of the second transposition table from the length of the stream just created
 1. Pass through first transposition table 17 cols by N (See [Figure 3](#figure-3))
-    1. First two rows how?
-    1. Second row indicates which order to access for next step
-    1. Take the stream from step 5 and fill in the first table from the third row moving left to right, top to bottom
+    1. First two rows were prepared at the derivation stage
+    1. Take the stream from step 7 and fill in the first table from the third row moving left to right, top to bottom
 1. Pass through second transposition table (See [Figure 4](#figure-4))
-    1. Construct the second transposition table
-	- 14 cols by N. How?
-    1. Fill in top two rows how?
+    1. Width was established at the derivations stage, height established after the checkerboard stage
+    1. Top two rows were prepared at the derivation stage
     1. Create disruption areas based on "1" in second row, with area extending to right, and on following row starting one character to right, and so on. Once there are no more to move to right, skip a row, and repeat with "2" in the second row
-	- Disruption starts right of * in each row
+	- Disruption starts right of * in each row in this document, but do not actually exist in the processing
     3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2" and so on.
     4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table
     5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.
 1. Construct the output stream, reading down the "1" column from the second transposition table, ignoring disruptor space, and taking five digits at a time.
-1. Insert a keygroup (20818) to be the fifth group before message ends
+1. Insert a keygroup (20818) to be the fifth group before message ends, that location being determined at the derivations stage
 
 # Writing code
 - First commit has many of the sections I'll be using (constants, command line, classes, functions, main, etc)
@@ -52,13 +53,15 @@ Book specifies that encipherment will be described.
 - Next implements the Checkerboard
 - Next implements the Transposition tables initial work, and some presentation
 - Implement populating the transposition tables
+- Implement the derivations stage
+- With skyhook code now removed, the code properly enciphers the book's example message
 
 # Keys
 Book states four keys:
 1. The Russian word for snowfall: СНЕГOПА
 1. Part of a folk song: The first 20 letters of the third line of ["The Lone Accordion" by Korovyeff](https://lyricstranslate.com/en/odinokaya-garmon039-odinokaya-garmon-lonely-accordion.html): "ТОЛЬКО СЛЫШНО НА УЛИЦЕ Г"
 1. A patriotic date: 3/9/1945 ([3rd Sept 1945 Russian VoJ date](https://ru.wikisource.org/wiki/%D0%A3%D0%BA%D0%B0%D0%B7_%D0%9F%D1%80%D0%B5%D0%B7%D0%B8%D0%B4%D0%B8%D1%83%D0%BC%D0%B0_%D0%92%D0%A1_%D0%A1%D0%A1%D0%A1%D0%A0_%D0%BE%D1%82_2.09.1945_%D0%BE%D0%B1_%D0%BE%D0%B1%D1%8A%D1%8F%D0%B2%D0%BB%D0%B5%D0%BD%D0%B8%D0%B8_3_%D1%81%D0%B5%D0%BD%D1%82%D1%8F%D0%B1%D1%80%D1%8F_%D0%BF%D1%80%D0%B0%D0%B7%D0%B4%D0%BD%D0%B8%D0%BA%D0%BE%D0%BC_%D0%BF%D0%BE%D0%B1%D0%B5%D0%B4%D1%8B_%D0%BD%D0%B0%D0%B4_%D0%AF%D0%BF%D0%BE%D0%BD%D0%B8%D0%B5%D0%B9))
-1. A number: 13
+1. A number: 13, probably the Agent's identifier
 
 # Cyrillic alphabet
 It's not stated but the book assumes the agent would know the order of the standard Russian alphabet
@@ -345,7 +348,7 @@ First transposition tableau
 Second transposition tableau
 - same source as figure 2
 - the disruption areas are marked with a " * " before they start
-- note [9] halfway down. In the book that's a 5. There may be others
+- note [9] halfway down. In the book that's a 5. There may be others. The code does generate a 5.
 ```
 3 0 2 7 4 3 0 4 2 8 7 7 1 2
 5 13 2 9 7 6 14 8 3 12 10 11 1 4
