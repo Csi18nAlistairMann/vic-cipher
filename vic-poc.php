@@ -13,6 +13,32 @@ define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫ�
 4. ГАММЫ ВЫСЫЛАТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУИТЕ, А ПОБОЛЬШЕТИРЕ ДЕЛАИТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ, МЕСТО РАБОТЫ, АДРЕС И Т.Д. В ОДНОИ ШИФРОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАИТЕ ОТДЕЛЬНО.
 5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕИ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕИ
 №1 ДРОБЬО 3 ДЕКАБРЯ");
+// Poem must be capitalised and in the usable alpabet already, and with one
+// line per element
+define("TEST_POEM", array("СНОВА ЗАМЕРЛО ВСЕ ДО РАССВЕТА",
+			  "ДВЕРЬ НЕ СКРИПНЕТ НЕ ВСПЫХНЕТ ОГОНЬ",
+			  "ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
+			  "ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
+			  "ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
+			  "ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
+			  "ТО ПОЙДЕТ НА ПОЛЯ ЗА ВОРОТА",
+			  "ТО ВЕРНЕТСЯ ОБРАТНО ОПЯТЬ",
+			  "СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
+			  "И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
+			  "СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
+			  "И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
+			  "ВЕЕТ С ПОЛЯ НОЧНАЯ ПРОХЛАДА",
+			  "С ЯБЛОНЬ ЦВЕТ ОБЛЕТАЕТ ГУСТОЙ",
+			  "ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
+			  "ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
+			  "ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
+			  "ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
+			  "МОЖЕТ РАДОСТЬ ТВОЯ НЕДАЛЕКО",
+			  "ДА НЕ ЗНАЕТ ЕЕ ЛИ ТЫ ЖДЕШЬ",
+			  "ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
+			  "ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ",
+			  "ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
+			  "ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ"));
 
 // Constants
 // Placeholders are needed to get single character control codes
@@ -27,9 +53,9 @@ define("RU_ALPHABET_IGNORE", "ЁЙЪ");
 define("NUMERIC_ALPHABET", "1234567890"); // Single digit conversion sequences
 define("VIC_CHECKERBOARD_WIDTH", 11);
 define("VIC_CHECKERBOARD_HEIGHT", 5);
-define("CHECKERBOARD_OTHERS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
-				    array(5, PLACEHOLDER_№, PLACEHOLDER_НЦ,
-					  PLACEHOLDER_НТ)));
+define("CHECKERBOARD_CONTROL_CHARS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
+					   array(5, PLACEHOLDER_№, PLACEHOLDER_НЦ,
+						 PLACEHOLDER_НТ)));
 define("CHECKERBOARD_DEFAULT_VAL", ' ');
 define("ENCIPHER", true); // false for decipher, supercede on command line later
 define('TABLEAUX_TYPE_1', 1);
@@ -37,11 +63,13 @@ define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
 define('MESSAGE_NUMBER_KEYGROUP', "20818"); // Different group each message
+// 2 is null, idk how 1 4 arrived at, repeat to maximum five chars
+define('FILLER_MATERIAL', '21421');
 
 // Handle command line
 // Forced for now
 $key1 = "СНЕГОПА";
-$key2 = keyFromPoem(3); // 3 for third line
+$key2 = keyFromPoem(TEST_POEM, 3); // 3 for third line
 $key3 = "3/9/1945"; // Just the digits are used
 $key4 = 13; // Agent's personal identifier
 
@@ -54,16 +82,12 @@ $plaintext = TEST_PLAINTEXT;
 $alphabet_usable = constructAcceptableAlphabet($alphabet, $alphabet_ignore);
 
 // Set up tables
-$cb = new Checkerboard();
 $d = new Derivations($alphabet_usable, $key1, $key2, $key3, $key4,
 		     MESSAGE_NUMBER_KEYGROUP);
-$tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1, $d->getWidthTableaux1(),
-				 $d->getTableaux1Breeder());
-$tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2, $d->getWidthTableaux2(),
-				 $d->getTableaux2Breeder());
-$cb->initialise(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH, $key1,
-		$alphabet_usable, CHECKERBOARD_OTHERS,
-		$d->getCheckerboardBreeder());
+$tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1, $d);
+$tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2, $d);
+$cb = new Checkerboard(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH,
+		       CHECKERBOARD_CONTROL_CHARS, $d);
 
 if (ENCIPHER === true) {
   // Encipher
@@ -80,7 +104,7 @@ if (ENCIPHER === true) {
   $tt2->fillTableaux($plaintext_transposed1);
   $plaintext_transposed2 = $tt2->getTransposed();
   $ciphertext = fiveGroups($plaintext_transposed2, MESSAGE_NUMBER_KEYGROUP,
-			   $d->getArbKeygroupPosition());
+			   $d->getMessageNumberPosition());
   var_dump($ciphertext);
 
 } else {
@@ -98,15 +122,21 @@ exit;
 // constants used in creating the cipher system: positions, widths, and
 // breeders.
 class Derivations {
-  private $arbKeygroupPosition;
-  private $width_tableux_1;
-  private $width_tableux_2;
-  private $tableaux1_breeder;
-  private $tableaux2_breeder;
-  private $checkerboard_breeder;
+  private $messageNumberPosition;
+  private $widthTableux1;
+  private $widthTableux2;
+  private $tableaux1Breeder;
+  private $tableaux2Breeder;
+  private $checkerboardBreeder;
+  private $alphabetUsable;
+  private $key1;
 
   // All factors are available at the start
   function __construct($alphabet, $word, $poem, $date, $id, $msg_num) {
+    // Store some for later availability to the Checkerboard
+    $this->alphabetUsable = $alphabet;
+    $this->key1 = $word;
+
     // The "date" key is used twice, first to indicate the position from the
     // end at which the message number is to be inserted, and then develop
     // to Line C
@@ -115,12 +145,12 @@ class Derivations {
       if ($date[$a] >= "0" && $date[$a] <= "9")
 	$this->date .= $date[$a];
     }
-    $this->arbKeygroupPosition = $this->date[5];
+    $this->messageNumberPosition = $this->date[5];
 
     // Upto Line C
-    // 20818+39194=91724
+    // 20818 - 39194 = 91724
     // Message number + first part of date = 91724
-    // chain addition 91724 out to ten digits 9172408964
+    // chain addition 91724 out to ten digits = 9172408964
     $linec = array();
     for ($a = 0; $a < 5; $a++) {
       $linec[$a] = ($msg_num[$a] - $this->date[$a]) % 10;
@@ -161,9 +191,9 @@ class Derivations {
     }
 
     // Use the k2p_cube with the agent's ID to determine the widths
-    $this->width_tableaux_1 = ($id + $this->k2p_cube[5][8 - 1]);
-    $this->width_tableaux_2 = ($id + $this->k2p_cube[5][9 - 1]);
-    $both_widths = $this->width_tableaux_1 + $this->width_tableaux_2;
+    $this->widthTableaux1 = ($id + $this->k2p_cube[5][8 - 1]);
+    $this->widthTableaux2 = ($id + $this->k2p_cube[5][9 - 1]);
+    $both_widths = $this->widthTableaux1 + $this->widthTableaux2;
 
     // Upto Lines Q, R
     // Obtain a stream using the columns in sequence order
@@ -181,45 +211,55 @@ class Derivations {
     } while(sizeof($qnr) < $both_widths);
 
     // Use that stream to create the breeders for both tableaux
-    $this->tableaux1_breeder = array_slice($qnr, 0, $this->width_tableaux_1);
-    $this->tableaux2_breeder = array_slice($qnr, $this->width_tableaux_1,
-					   $this->width_tableaux_2);
+    $this->tableaux1Breeder = array_slice($qnr, 0, $this->widthTableaux1);
+    $this->tableaux2Breeder = array_slice($qnr, $this->widthTableaux1,
+					  $this->widthTableaux2);
 
     // Upto Line S
     // And finally use the last row of the k2p_cube to form a conversion
     // sequence which will populate the checkerboard's breeder
-    $this->checkerboard_breeder = simpleConvert2Sequential(NUMERIC_ALPHABET,
-						     $this->k2p_cube[5]);
+    $this->checkerboardBreeder = simpleConvert2Sequential(NUMERIC_ALPHABET,
+							  $this->k2p_cube[5]);
   }
 
   // 20818 gets placed where
-  function getArbKeygroupPosition() {
-    return $this->arbKeygroupPosition;
+  function getMessageNumberPosition() {
+    return $this->messageNumberPosition;
   }
 
   // 96033...
   function getTableaux1Breeder() {
-    return $this->tableaux1_breeder;
+    return $this->tableaux1Breeder;
   }
 
-  // 30274 ...
+  // 30274...
   function getTableaux2Breeder() {
-    return $this->tableaux2_breeder;
+    return $this->tableaux2Breeder;
   }
 
-  // 17 ...
+  // 17
   function getWidthTableaux1() {
-    return $this->width_tableaux_1;
+    return $this->widthTableaux1;
   }
 
-  // 14 ...
+  // 14
   function getWidthTableaux2() {
-    return $this->width_tableaux_2;
+    return $this->widthTableaux2;
   }
 
   // 50738...
   function getCheckerboardBreeder() {
-    return $this->checkerboard_breeder;
+    return $this->checkerboardBreeder;
+  }
+
+  // АБВГДЕЖЗИКЛМНОПРСТУФХЦЧШЩЫЬЭЮЯ
+  function getAlphabetUsable() {
+    return $this->alphabetUsable;
+  }
+
+  // СНЕГОПА
+  function getKey1() {
+    return $this->key1;
   }
 }
 
@@ -265,18 +305,18 @@ class TranspositionTableaux {
 	}
       }
       $col++;
-    } while ($found === true);
+    } while ($found === true && $row < $this->height);
   }
 
   //
-  // The two transposition tablueax fill up in different ways - this method
+  // The two transposition tableaux fill up in different ways - this method
   // implements both
   function fillTableaux($stream) {
+    // Both start at top left, with first character in stream
+    $stream_idx = 0;
+    $row = 2;
     if ($this->type === TABLEAUX_TYPE_1) {
       // Straight forward left to right, top to bottom
-      $stream_idx = 0;
-      $row = 2;
-
       do {
 	$line = substr($stream, $stream_idx, $this->width);
 	for($a = 0; $a < strlen($line); $a++) {
@@ -289,8 +329,6 @@ class TranspositionTableaux {
     } elseif ($this->type === TABLEAUX_TYPE_2) {
       // Not so straightforward: left to right, top to bottom in the areas
       // without disruption, then repeat in the areas with disruption
-      $stream_idx = 0;
-      $row = 2;
 
       // Undisrupted areas first (always starts at left,
       do {
@@ -301,7 +339,7 @@ class TranspositionTableaux {
 	}
 	$stream_idx += $this->disruption[$row];
 	$row++;
-      } while ($stream_idx < strlen($stream) && ($row <= $this->height));
+      } while ($stream_idx < strlen($stream) && $row <= $this->height);
 
       // Disrupted areas second
       $row = 2;
@@ -313,26 +351,33 @@ class TranspositionTableaux {
 	}
 	$stream_idx += $this->width - $this->disruption[$row];
 	$row++;
-      } while ($stream_idx < strlen($stream) && ($row <= $this->height));
+      } while ($stream_idx < strlen($stream) && $row <= $this->height);
     }
   }
 
-  function __construct($type, $width, $breeder) {
+  function __construct($type, $derivations) {
     $this->type = $type;
-    $this->tableaux = array($breeder); // row[0]
-    $this->tableaux[] = bigConvert2Sequential($this->tableaux[0]); // row[1]
     $this->disruption = array();
-    $this->width = intval($width);
 
+    if ($this->type === TABLEAUX_TYPE_1) {
+      $this->width = intval($derivations->getWidthTableaux1());
+      $this->tableaux = array($derivations->getTableaux1Breeder());
+
+    } else if ($this->type === TABLEAUX_TYPE_2) {
+      $this->width = intval($derivations->getWidthTableaux2());
+      $this->tableaux = array($derivations->getTableaux2Breeder());
+    }
+    $this->tableaux[1] = bigConvert2Sequential($this->tableaux[0]);
+  }
+
+  // We don't need the length, but second tableaux does need the height based
+  // on the length
+  function setCipherLength($length) {
     if ($this->type === TABLEAUX_TYPE_2) {
+      // +2 to accomodate breeder lines
+      $this->height = intval($length / $this->width) + 2;
       $this->generateDisruptionData();
     }
-  }
-
-  // We don't need the length, but we do need the height based on the length
-  function setCipherLength($length) {
-    // +2 to accomodate breeder lines
-    $this->height = intval($length / $this->width) + 2;
   }
 
   //
@@ -341,9 +386,9 @@ class TranspositionTableaux {
   function getTransposed() {
     $stream = '';
     $keynumber = 1;
+
     // Traverse table
     do {
-
       // Traverse columns
       $coldone = false;
       // Find work to do for current keynumber
@@ -370,7 +415,6 @@ class TranspositionTableaux {
   }
 }
 
-
 //
 // Checkerboard class
 class Checkerboard {
@@ -389,7 +433,7 @@ class Checkerboard {
     $row = VIC_CHECKERBOARD_WIDTH * $starty;
     $pos = $row + $startx; // increment $pos until we find an empty cell
 
-    //
+    // Keep going until no work is done
     $donef = false;
     do {
       if ($data === array()) {
@@ -399,44 +443,38 @@ class Checkerboard {
       } else {
 	// Convert $pos into co-ords
 	$y = intval($pos / VIC_CHECKERBOARD_WIDTH);
-	$x = $pos - ($y * VIC_CHECKERBOARD_WIDTH);
+	$x = $pos % VIC_CHECKERBOARD_WIDTH;
 
-	if ($x >= VIC_CHECKERBOARD_WIDTH) {
-	  // Finish if the next column is off the right of the checkerboard
-	  $donef = true;
-
-	} else {
-	  if ($this->cb[$y][$x] === CHECKERBOARD_DEFAULT_VAL) {
-	    // Place next character only if the cell is free
-	    $this->cb[$y][$x] = array_shift($data);
-	  }
-	  // Next character goes down a row
-	  $pos += VIC_CHECKERBOARD_WIDTH;
-	  // If down a row is off the bottom, go back up and right one column
-	  if ($pos >= VIC_CHECKERBOARD_WIDTH * VIC_CHECKERBOARD_HEIGHT) {
-	    $pos -= (3 * VIC_CHECKERBOARD_WIDTH);
-	    $pos++;
-	  }
+	if ($this->cb[$y][$x] === CHECKERBOARD_DEFAULT_VAL) {
+	  // Place next character only if the cell is free
+	  $this->cb[$y][$x] = array_shift($data);
+	}
+	// Next character goes down a row
+	$pos += VIC_CHECKERBOARD_WIDTH;
+	// If down a row is off the bottom, go back up and right one column
+	if ($pos >= VIC_CHECKERBOARD_WIDTH * VIC_CHECKERBOARD_HEIGHT) {
+	  $pos -= (3 * VIC_CHECKERBOARD_WIDTH);
+	  $pos++;
 	}
       }
     } while (!$donef);
   }
 
   //
-  // initialise() does the initial set up of the checkerboard in this order
+  // initialise() does the initial set up of the checkerboard in this order:
   // processing chars / key / usable alphabet / 'repeat' symbol. By using this
   // order we can arrange later characters around earlier ones, per the book
-  function initialise($width, $height, $key, $alphabet, $others, $breeder) {
+  function __construct($width, $height, $controlChars, $derivations) {
     // Unlock the class for editing (used to support a quick lookup)
     $this->editable = true;
 
     // PHP doesn't have constrained arrays, so we'll fake one
     $this->cb = array_fill(0, $width, array_fill(0, $height, CHECKERBOARD_DEFAULT_VAL));
 
-    // Fill any "others" first: "message starts", "change to/from numeric", etc
-    if ($others !== null) {
-      for ($a = 0; $a < sizeof($others); $a++) {
-	$data = $others[$a];
+    // Fill in the control chars: "message starts", "change to/from numeric", etc
+    if ($controlChars !== null) {
+      for ($a = 0; $a < sizeof($controlChars); $a++) {
+	$data = $controlChars[$a];
 	$x = array_shift($data);
 	$this->fillBody($x, $data);
       }
@@ -446,15 +484,16 @@ class Checkerboard {
     $x = 1;
     $y = 1;
     $idx = 0;
-    while ($idx < mb_strlen($key)) {
-      $char = mb_substr($key, $idx, 1);
+    while ($idx < mb_strlen($derivations->getKey1())) {
+      $char = mb_substr($derivations->getKey1(), $idx, 1);
       $this->cb[$y][$x] = $char;
       $x++;
       $idx++;
     }
 
     // Remove the key's characters from the usable alphabet
-    $alphabet_nokey = constructAcceptableAlphabet($alphabet, $key);
+    $alphabet_nokey = constructAcceptableAlphabet($derivations->getAlphabetUsable(),
+						  $derivations->getKey1());
 
     // Continue with the usable alphabet
     if ($alphabet_nokey !== null) {
@@ -466,11 +505,12 @@ class Checkerboard {
       $this->fillBody($x, $alphabet_arr);
     }
 
-    // And end with the final "repeat" symbol
+    // Add the "repeat" symbol in the bottom right most cell
     $this->cb[VIC_CHECKERBOARD_HEIGHT - 1][VIC_CHECKERBOARD_WIDTH - 1] =
       PLACEHOLDER_ПВТ;
 
     // Now use the breeder to populate the top and left
+    $breeder = $derivations->getCheckerboardBreeder();
     for ($a = 1; $a <= 10; $a++) {
       $this->cb[0][$a] = $breeder[$a - 1];
     }
@@ -483,7 +523,7 @@ class Checkerboard {
   // Return the substitution for a single character
   function checkerboardSubstituteOne($char) {
     // Make lookups easier: first time through create an associative array and
-    // use that
+    // use that thereafter
     if ($this->editable === true) {
       $this->editable = false;
 
@@ -519,20 +559,24 @@ class Checkerboard {
   }
 
   //
-  // Return the substitution for a stream of text
-  // Note original ends on 2 1 4, labelled NULLS, but it isn't clear how this
-  // is arrived at. I suspect 2 being empty in the original checkerboard is any
-  // null ending processing, that the 1 and 4 are filler, and the length is
-  // to make up the numbers
+  // Return the substitution for a stream of text having padded it out. The
+  // choices behind "2 1 4" are not clear from the book, so I've assumed only
+  // the first "2" is actioned for being a null, and the remainder are ignored.
+  // It seems to me that cryptographers might choose to vary the content rather
+  // than repeat it, so "2142" would be the maximum filler used
   function checkerboardSubstitution($text) {
+    // Loop the string substituting one at a time
     $output = '';
     for ($idx = 0; $idx <= mb_strlen($text); $idx++) {
       $c = mb_substr($text, $idx, 1);
       $d = $this->checkerboardSubstituteOne($c);
-
       $output .= $d;
     }
-    $output .= '214'; // Bodge as book doesn't indicate how NULLS arrived at
+
+    // We now know the final ciphertext length, so pad it out to a fit the
+    // five groups scheme
+    $output .= substr(FILLER_MATERIAL, 0,
+		      FIVEGROUP_NUM - strlen($output) % FIVEGROUP_NUM);
     return $output;
   }
 }
@@ -569,14 +613,16 @@ class Checkerboard {
 // Most uses of convering to sequences works conveniently on elements
 // from 0 - 9 or on no more than ten alphabetic characters.  This first
 // function handles these
-function simpleConvert2Sequential($alphabet, $string) {
-  if (is_array($string)) {
-    $nustring = '';
-    for ($a = 0; $a < sizeof($string); $a++)
-      $nustring .= $string[$a];
-    $string = $nustring;
+function simpleConvert2Sequential($alphabet, $origString) {
+  // On occasion the text arrives in array format - convert it to string first
+  $string = $origString;
+  if (is_array($origString)) {
+    $string = '';
+    for ($a = 0; $a < sizeof($origString); $a++)
+      $string .= $origString[$a];
   }
 
+  // And convert to a sequence
   $rv = array_fill(0, 10, 0);
   $nextnum = 1;
   // Loop through standard alphabet
@@ -594,15 +640,15 @@ function simpleConvert2Sequential($alphabet, $string) {
 }
 
 //
-// The tableaux being wider than ten characters needs a more powerful
-// approach
+// The tableaux being wider than ten characters requires an approach that can
+// handle sequence members > 9. This code accomplishes same using arrays
 function bigConvert2Sequential($num_arr) {
   // Find the maximum value used
   $sz = sizeof($num_arr);
   $max = 0;
   for ($a = 1; $a < $sz; $a++) {
-    if ($num_arr[$a] === 0)
-      $num_arr[$a] = 10; // numeric alphabet has 0 after 9
+    if ($num_arr[$a] === 0) // Max digit 0 treated as 10, so gets placed last
+      $num_arr[$a] = 10;
     if ($num_arr[$a] > $max)
       $max = $num_arr[$a];
   }
@@ -664,7 +710,8 @@ function fiveGroups($stream, $keygroup, $position) {
     $output = trim($output) . "\n";
   }
 
-  return $output;
+  // Remove final \n
+  return trim($output);
 }
 
 //
@@ -672,8 +719,9 @@ function fiveGroups($stream, $keygroup, $position) {
 // Cyrillic has three chars not used in the VIC Cipher
 function constructAcceptableAlphabet($alphabet, $alphabet_ignore) {
   if (mb_strlen($alphabet_ignore) > 0) {
-    // construct the acceptable parts of the alphabet by removing the known
-    // ignorable entries;
+    // Construct the acceptable parts of the alphabet by removing the known
+    // ignorable entries. Yes, could have done that directly, but trying to
+    // show process not shortest method
     for ($a = 0; $a < mb_strlen($alphabet_ignore) - 1; $a++) {
       $alphabet = mb_ereg_replace("[" . mb_substr($alphabet_ignore, $a) . "]",
 				  "", $alphabet);
@@ -682,9 +730,10 @@ function constructAcceptableAlphabet($alphabet, $alphabet_ignore) {
   return $alphabet;
 }
 
+//
+// Swap the second half with the first half of the text, with НТ used to mark
+// where that first half now starts
 function swapHalves($text, $position = null) {
-  // swap the second part with the first part of the text, with НТ used to mark
-  // where that first part now starts
   if ($position === null) {
     $len = mb_strlen($text);
     $position = random_int(0, $len - 1);
@@ -692,8 +741,9 @@ function swapHalves($text, $position = null) {
   return mb_substr($text, $position) . PLACEHOLDER_НТ . mb_substr($text, 0, $position);
 }
 
+//
+// Change each occurence of a number such that " 3 " becomes " НЦ333НЦ "
 function encodeNumbers($text) {
-  // Change each occurence of a number such that " 3 " becomes " НЦ333НЦ "
   for($number = 0; $number <= 9; $number++) {
     $text = str_replace(strval($number), PLACEHOLDER_НЦ .
 			strval($number) . strval($number) . strval($number) .
@@ -704,32 +754,11 @@ function encodeNumbers($text) {
   return $text;
 }
 
-function keyFromPoem($line) {
-  // Poem must be capitalised
-  $poem = array("СНОВА ЗАМЕРЛО ВСЕ ДО РАССВЕТА",
-		"ДВЕРЬ НЕ СКРИПНЕТ НЕ ВСПЫХНЕТ ОГОНЬ",
-		"ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
-		"ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
-		"ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
-		"ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
-		"ТО ПОЙДЕТ НА ПОЛЯ ЗА ВОРОТА",
-		"ТО ВЕРНЕТСЯ ОБРАТНО ОПЯТЬ",
-		"СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
-		"И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
-		"СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
-		"И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
-		"ВЕЕТ С ПОЛЯ НОЧНАЯ ПРОХЛАДА",
-		"С ЯБЛОНЬ ЦВЕТ ОБЛЕТАЕТ ГУСТОЙ",
-		"ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
-		"ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
-		"ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
-		"ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
-		"МОЖЕТ РАДОСТЬ ТВОЯ НЕДАЛЕКО",
-		"ДА НЕ ЗНАЕТ ЕЕ ЛИ ТЫ ЖДЕШЬ",
-		"ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
-		"ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ",
-		"ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
-		"ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ");
+//
+// Extract a particular line from the poem, remove the white space, and return
+// first 20 chars
+function keyFromPoem($poem, $line) {
+  // Poem must be capitalised already
   // Take nth line
   $sentence = $poem[$line - 1];
   // Remove spaces

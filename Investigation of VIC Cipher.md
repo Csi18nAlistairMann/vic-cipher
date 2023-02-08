@@ -55,6 +55,7 @@ Book specifies that encipherment will be described.
 - Implement populating the transposition tables
 - Implement the derivations stage
 - With skyhook code now removed, the code properly enciphers the book's example message
+- Improve code and handling to better reflect what's been learned
 
 # Keys
 Book states four keys:
