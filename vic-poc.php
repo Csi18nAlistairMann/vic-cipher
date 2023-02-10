@@ -13,6 +13,30 @@ define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫ�
 4. ГАММЫ ВЫСЫЛАТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУИТЕ, А ПОБОЛЬШЕТИРЕ ДЕЛАИТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ, МЕСТО РАБОТЫ, АДРЕС И Т.Д. В ОДНОИ ШИФРОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАИТЕ ОТДЕЛЬНО.
 5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕИ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕИ
 №1 ДРОБЬО 3 ДЕКАБРЯ");
+// The "214" problem: padding to a five group boundary but there's no
+// explanation as to how that sequence was arrived at.
+define('TEST_FILLER_MATERIAL', '2142');
+define("TEST_CIPHERTEXT", "14546 36056 64211 08919 18710 71187 71215 02906 66036 10922
+11375 61238 65634 39175 37378 31013 22596 19291 17463 23551
+88527 10130 01767 12366 16669 97846 76559 50062 91171 72332
+19262 69849 90251 11576 46121 24666 05902 19229 56150 23521
+51911 78912 32939 31966 12096 12060 89748 25362 43167 99841
+76271 31154 26838 77221 58343 61164 14349 01241 26269 71578
+31734 27562 51236 12982 18089 66218 22577 09454 81216 71953
+26986 89779 54197 11990 23881 48884 22165 62992 36449 41742
+30267 77614 31565 30902 85812 16112 93312 71220 60369 12872
+12458 19081 97117 70107 06391 71114 19459 59586 80317 07522
+76509 11111 36990 32666 04411 51532 91184 23162 82011 19185
+56110 28876 76718 03563 28222 31674 39023 07623 93513 97175
+29816 95761 69483 32951 97686 34992 61109 95090 24092 71008
+90061 14790 15154 14655 29011 57206 77195 01256 69250 62901
+39179 71229 23299 84164 45900 42227 65853 17591 60182 06315
+65812 01378 14566 87719 92507 79517 99651 82155 58118 67197
+30015 70687 36201 56531 56721 26306 87185 91796 51341 07796
+76655 62716 33588 21932 16224 87721 85519 23191 20665 45140
+66098 60959 71521 02334 21212 51110 85227 98768 11125 05321
+53152 14191 12166 12715 03116 43041 74822 72759 29130 21947
+15764 96851 20818 22370 11391 83520 62297");
 // Poem must be capitalised and in the usable alpabet already, and with one
 // line per element
 define("TEST_POEM", array("СНОВА ЗАМЕРЛО ВСЕ ДО РАССВЕТА",
@@ -57,14 +81,13 @@ define("CHECKERBOARD_CONTROL_CHARS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
 					   array(5, PLACEHOLDER_№, PLACEHOLDER_НЦ,
 						 PLACEHOLDER_НТ)));
 define("CHECKERBOARD_DEFAULT_VAL", ' ');
-define("ENCIPHER", true); // false for decipher, supercede on command line later
+define("ENCIPHER", false); // false for decipher, supercede on command line later
 define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
 define('MESSAGE_NUMBER_KEYGROUP', "20818"); // Different group each message
 // 2 is null, idk how 1 4 arrived at, repeat to maximum five chars
-define('FILLER_MATERIAL', '21421');
 
 // Handle command line
 // Forced for now
@@ -76,6 +99,7 @@ $key4 = 13; // Agent's personal identifier
 $alphabet = RU_ALPHABET;
 $alphabet_ignore = RU_ALPHABET_IGNORE;
 $plaintext = TEST_PLAINTEXT;
+$ciphertext = TEST_CIPHERTEXT;
 
 //
 // Main
@@ -109,7 +133,19 @@ if (ENCIPHER === true) {
 
 } else {
   // Decipher
-
+  $ciphertext_arr = fiveGroups2Arr($ciphertext);
+  $idx = sizeof($ciphertext_arr) - 5;
+  $message_number = $ciphertext_arr[$idx];
+  $ciphertext_arr = array_merge(array_slice($ciphertext_arr, 0, $idx),
+				array_slice($ciphertext_arr, $idx + 1));
+  $ciphertext_str = fiveGroupsArr2Str($ciphertext_arr);
+  $tt2->decipherTextFillTableaux($ciphertext_str);
+  $undisrupted_stream = $tt2->undisruptTableaux();
+  $tt1->decipherTextFillTableaux($undisrupted_stream);
+  $fig2stream = $tt1->readOutByRows();
+  $plaintext_str1 = $cb->unsubstitutions($fig2stream, TEST_FILLER_MATERIAL);
+  $plaintext_unchopped = unswapHalves($plaintext_str1);
+  var_dump($plaintext_unchopped);
 }
 exit;
 
@@ -355,6 +391,84 @@ class TranspositionTableaux {
     }
   }
 
+  //
+  // To get a stream back from a disrupted tableaux we need to address the
+  // undisrupted areas before the disrupted. Both start at top left most
+  // available cell in row[2]
+  function undisruptTableaux() {
+    $stream = '';
+    $row = 2;
+
+    // Undisrupted areas first (always starts at left,
+    for($row = 2; $row < $this->height + 1; $row++) {
+      for ($col = 0; $col < $this->disruption[$row]; $col++) {
+	$stream .= $this->tableaux[$row][$col];
+      }
+    }
+
+    // Now disrupted areas
+    for($row = 2; $row < $this->height + 1; $row++) {
+      for ($col = $this->disruption[$row]; $col < $this->width; $col++) {
+	$stream .= $this->tableaux[$row][$col];
+      }
+    }
+    return trim($stream);
+  }
+
+  //
+  // To get a stream that's not disrupted is rather simpler
+  function readOutByRows() {
+    $stream = '';
+    for($row = 2; $row < $this->height + 1; $row++) {
+      for($col = 0; $col < $this->width; $col++) {
+	// CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
+	// empty
+	if ($this->tableaux[$row][$col] != CHECKERBOARD_DEFAULT_VAL) {
+	  $stream .= $this->tableaux[$row][$col];
+	}
+      }
+    }
+    return $stream;
+  }
+
+  //
+  // Take the enciphered stream and fill the tableaux according to the sequence
+  // given in row[1]
+  function decipherTextFillTableaux($stream) {
+    // Use length to derive table dimensions
+    $ciphertext_len = strlen($stream);
+    $this->setCipherLength($ciphertext_len);
+    $short_row_sz = $ciphertext_len - ($this->height - 2) * $this->width;
+    $empty_arr = array_fill(0, $this->height - 1,
+			    array_fill(0, $this->width,
+				       CHECKERBOARD_DEFAULT_VAL));
+    $this->tableaux = array_merge($this->tableaux, $empty_arr);
+
+    // Loop through the sequenced columns
+    $stream_idx = 0;
+    for ($column = 1; $column <= $this->width; $column++) {
+      // Find that column
+      $idx = 0;
+      $donef = false;
+      do {
+	// Check if column matches the sequence number
+	if ($this->tableaux[1][$idx] === $column) {
+	  // If so, fill the tableaux using the stream & accounting that some
+	  // columns are longer than others
+	  $col_height = ($idx < $short_row_sz) ?
+	    $this->height - 1 :
+	    $this->height - 2;
+	  // + 2 for breeder lines
+	  for ($row = 2; $row < $col_height + 2; $row++) {
+	    $this->tableaux[$row][$idx] = $stream[$stream_idx++];
+	  }
+	  $donef = true;
+	}
+	$idx++;
+      } while ($donef === false);
+    }
+  }
+
   function __construct($type, $derivations) {
     $this->type = $type;
     $this->disruption = array();
@@ -370,12 +484,12 @@ class TranspositionTableaux {
     $this->tableaux[1] = bigConvert2Sequential($this->tableaux[0]);
   }
 
-  // We don't need the length, but second tableaux does need the height based
-  // on the length
+  // The length is used to determine the height. For the second tableaux its
+  // availability allows generation of the disruption data
   function setCipherLength($length) {
+    // +2 to accomodate breeder lines
+    $this->height = intval($length / $this->width) + 2;
     if ($this->type === TABLEAUX_TYPE_2) {
-      // +2 to accomodate breeder lines
-      $this->height = intval($length / $this->width) + 2;
       $this->generateDisruptionData();
     }
   }
@@ -575,9 +689,119 @@ class Checkerboard {
 
     // We now know the final ciphertext length, so pad it out to a fit the
     // five groups scheme
-    $output .= substr(FILLER_MATERIAL, 0,
+    $output .= substr(TEST_FILLER_MATERIAL, 0,
 		      FIVEGROUP_NUM - strlen($output) % FIVEGROUP_NUM);
     return $output;
+  }
+
+  // Turn the coords back into plaintext
+  function unsubstitutions($stream, $filler) {
+    // Make up an associative array of the coords with their various plaintext
+    // equivalents
+    // Single digit row first
+    $unsub = array();
+    for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
+      $unsub[$this->cb[0][$a]] = $this->cb[1][$a];
+    }
+
+    // Doubles after
+    $lcoord_str = '';
+    for ($row = 2; $row < VIC_CHECKERBOARD_HEIGHT; $row++) {
+      $lcoord = $this->cb[$row][0];
+      $lcoord_str .= "$lcoord";
+      for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
+	if ($this->cb[$row][$a] != CHECKERBOARD_DEFAULT_VAL) {
+	  $unsub[($lcoord * 10) + $this->cb[0][$a]] = $this->cb[$row][$a];
+	}
+      }
+    }
+
+    //
+    // There's no nice way to do this: this bodge removes the filler text,
+    // try to remove successively shorter matches. It's possibly there's
+    // no filler, but not possible for more than four
+    if (substr($stream, -4) === $filler) {
+      $stream = substr($stream, 0, -4);
+    } else if (substr($stream, -3) === substr($filler, 0, 3)) {
+      $stream = substr($stream, 0, -3);
+    } else if (substr($stream, -2) === substr($filler, 0, 2)) {
+      $stream = substr($stream, 0, -2);
+    } else if (substr($stream, -1) === substr($filler, 0, 1)) {
+      $stream = substr($stream, 0, -1);
+    }
+
+    // Now convert the stream to coords
+    $idx = 0;
+    $coord_stream = array();
+    $doing_numerics = false;
+    do {
+      // Each time through we take whatever the CB says exists. If we come
+      // across the НЦ marker, we change to handling numbers until such
+      // time as we see another НЦ.
+      if (strpos($lcoord_str, $stream[$idx]) !== false) {
+	// a double digit coord
+	$coord_len = 2;
+	$c = substr($stream, $idx, $coord_len);
+	$lcoord = $c[0] * 10;
+	$tcoord = $c[1];
+	if ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
+	  $doing_numerics = !$doing_numerics;
+	}
+
+      } else {
+	// this is a single digit coord
+	$coord_len = 1;
+	$c = substr($stream, $idx, $coord_len);
+	$lcoord = 0;
+	$tcoord = $c[0];
+      }
+
+      // Record the plain text and look to the next coord
+      $coord_stream[] = $c;
+      $idx += $coord_len;
+
+      // If the next coord will be a numeric, handle them seperately
+      while ($doing_numerics) {
+	$coord_len = 3;
+	$c = substr($stream, $idx, $coord_len);
+	$coord_stream[] = $c[0]; // three chars should match
+	$idx += 3;
+
+	// Keep doing more numerics until we see another НЦ
+	$c = substr($stream, $idx, 2);
+	$lcoord = $c[0] * 10;
+	$tcoord = $c[1];
+	if ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
+	  break;
+	}
+      }
+    } while ($idx < strlen($stream));
+
+    // Now convert the coords back to plaintext
+    $idx = 0;
+    $text = '';
+    do {
+      $coord = $coord_stream[$idx];
+      if ($unsub[$coord] !== PLACEHOLDER_НЦ) {
+	$char = $unsub[$coord];
+	$text .= $char;
+
+      } else {
+	// On НЦ we record the numbers until we see the next НЦ
+	$idx++;
+	do {
+	  $char = $coord_stream[$idx];
+	  $text .= $char;
+	  $idx++;
+	} while ($unsub[$coord_stream[$idx]] !== PLACEHOLDER_НЦ);
+      }
+      $idx++;
+    } while ($idx < sizeof($coord_stream));
+
+    //
+    // While we're here, we can swap No. too
+    $text = mb_ereg_replace('[' . PLACEHOLDER_№ . "]", "№", $text);
+    return $text;
   }
 }
 
@@ -683,6 +907,17 @@ function chainAddition($digits_arr, $length) {
 }
 
 //
+// Convert inbound five groups - now missing the message number - into a
+// stream
+function fiveGroupsArr2Str($data_arr) {
+  $stream = '';
+  for ($a = 0; $a < sizeof($data_arr); $a++) {
+    $stream .= $data_arr[$a];
+  }
+  return $stream;
+}
+
+//
 // Prepare the final ciphertext for output by grouping into groups of five
 // with ten such groups per row
 function fiveGroups($stream, $keygroup, $position) {
@@ -715,6 +950,15 @@ function fiveGroups($stream, $keygroup, $position) {
 }
 
 //
+// Take the message enciphered into a text stream of groups of five and turn
+// it into an array
+function fiveGroups2Arr($stream) {
+  $stream = str_replace("\n", ' ', $stream);
+  $rv = explode(' ', $stream);
+  return $rv;
+}
+
+//
 // Remove given items from the original alphabet
 // Cyrillic has three chars not used in the VIC Cipher
 function constructAcceptableAlphabet($alphabet, $alphabet_ignore) {
@@ -739,6 +983,15 @@ function swapHalves($text, $position = null) {
     $position = random_int(0, $len - 1);
   }
   return mb_substr($text, $position) . PLACEHOLDER_НТ . mb_substr($text, 0, $position);
+}
+
+//
+// НТ marks where the message should start: discard it and swap the halves back
+function unswapHalves($stream) {
+  $startpos = mb_strpos($stream, PLACEHOLDER_НТ);
+  $half2 = mb_substr($stream, 0, $startpos);
+  $half1 = mb_substr($stream, $startpos + 1); // + 1 to skip marker
+  return ($half1 . $half2);
 }
 
 //
