@@ -81,7 +81,8 @@ define("CHECKERBOARD_CONTROL_CHARS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
 					   array(5, PLACEHOLDER_№, PLACEHOLDER_НЦ,
 						 PLACEHOLDER_НТ)));
 define("CHECKERBOARD_DEFAULT_VAL", ' ');
-define("ENCIPHER", false); // false for decipher, supercede on command line later
+// true=encipher, false=decipher, 3=enc then dec. Supercede on command line later
+define("ENCIPHER", 3);
 define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
@@ -114,38 +115,35 @@ $cb = new Checkerboard(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH,
 		       CHECKERBOARD_CONTROL_CHARS, $d);
 
 if (ENCIPHER === true) {
-  // Encipher
-  // Process plaintext
-  $plaintext_numbers = encodeNumbers($plaintext);
-  $plaintext_chopped = swapHalves($plaintext_numbers, TEST_RANDOM_SWAP_POS);
-  $plaintext_checkerboarded = $cb->checkerboardSubstitution($plaintext_chopped);
-  // Bodged? Height is int(cipher_length / table width). Does that interact
-  // with the disruption areas properly?
-  $cipher_length = strlen($plaintext_checkerboarded);
-  $tt2->setCipherLength($cipher_length);
-  $tt1->fillTableaux($plaintext_checkerboarded);
-  $plaintext_transposed1 = $tt1->getTransposed();
-  $tt2->fillTableaux($plaintext_transposed1);
-  $plaintext_transposed2 = $tt2->getTransposed();
-  $ciphertext = fiveGroups($plaintext_transposed2, MESSAGE_NUMBER_KEYGROUP,
-			   $d->getMessageNumberPosition());
+  $ciphertext = encipher($plaintext, TEST_RANDOM_SWAP_POS, $d, $cb, $tt1, $tt2,
+			 MESSAGE_NUMBER_KEYGROUP);
   var_dump($ciphertext);
 
+} elseif (ENCIPHER === false) {
+  $plaintext = decipher($ciphertext, TEST_FILLER_MATERIAL, $cb, $tt1, $tt2);
+  var_dump($plaintext);
+
 } else {
-  // Decipher
-  $ciphertext_arr = fiveGroups2Arr($ciphertext);
-  $idx = sizeof($ciphertext_arr) - 5;
-  $message_number = $ciphertext_arr[$idx];
-  $ciphertext_arr = array_merge(array_slice($ciphertext_arr, 0, $idx),
-				array_slice($ciphertext_arr, $idx + 1));
-  $ciphertext_str = fiveGroupsArr2Str($ciphertext_arr);
-  $tt2->decipherTextFillTableaux($ciphertext_str);
-  $undisrupted_stream = $tt2->undisruptTableaux();
-  $tt1->decipherTextFillTableaux($undisrupted_stream);
-  $fig2stream = $tt1->readOutByRows();
-  $plaintext_str1 = $cb->unsubstitutions($fig2stream, TEST_FILLER_MATERIAL);
-  $plaintext_unchopped = unswapHalves($plaintext_str1);
-  var_dump($plaintext_unchopped);
+  $tt1d = clone($tt1);
+  $tt2d = clone($tt2);
+  $cbd = clone($cb);
+  // Encipher, decipher, and contrast
+  $enciphered = encipher($plaintext, TEST_RANDOM_SWAP_POS, $d, $cb, $tt1, $tt2,
+			  MESSAGE_NUMBER_KEYGROUP);
+  $deciphered = decipher($enciphered, TEST_FILLER_MATERIAL, $cb, $tt1, $tt2);
+
+  $original = TEST_PLAINTEXT;
+  $original_squashed = mb_ereg_replace('[\s]', '', $original);
+
+  if ($original_squashed === $deciphered) {
+    echo "Passed!\n";
+
+  } else {
+    echo "Failed\nOriginal:\n";
+    var_dump($original);
+    echo "Deciphered:\n";
+    var_dump($deciphered);
+  }
 }
 exit;
 
@@ -366,7 +364,7 @@ class TranspositionTableaux {
       // Not so straightforward: left to right, top to bottom in the areas
       // without disruption, then repeat in the areas with disruption
 
-      // Undisrupted areas first (always starts at left,
+      // Undisrupted areas first (always starts at left)
       do {
 	$this->tableaux[$row] = array(); // Helpful to create unused empty row
 	$line = substr($stream, $stream_idx, $this->disruption[$row]);
@@ -398,7 +396,6 @@ class TranspositionTableaux {
   function undisruptTableaux() {
     $stream = '';
     $row = 2;
-
     // Undisrupted areas first (always starts at left,
     for($row = 2; $row < $this->height + 1; $row++) {
       for ($col = 0; $col < $this->disruption[$row]; $col++) {
@@ -409,7 +406,9 @@ class TranspositionTableaux {
     // Now disrupted areas
     for($row = 2; $row < $this->height + 1; $row++) {
       for ($col = $this->disruption[$row]; $col < $this->width; $col++) {
-	$stream .= $this->tableaux[$row][$col];
+	if (array_key_exists($col, $this->tableaux[$row])) {
+	  $stream .= $this->tableaux[$row][$col];
+	}
       }
     }
     return trim($stream);
@@ -423,8 +422,10 @@ class TranspositionTableaux {
       for($col = 0; $col < $this->width; $col++) {
 	// CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
 	// empty
-	if ($this->tableaux[$row][$col] != CHECKERBOARD_DEFAULT_VAL) {
-	  $stream .= $this->tableaux[$row][$col];
+	if (array_key_exists($col, $this->tableaux[$row])) {
+	  if ($this->tableaux[$row][$col] != CHECKERBOARD_DEFAULT_VAL) {
+	    $stream .= $this->tableaux[$row][$col];
+	  }
 	}
       }
     }
@@ -1020,6 +1021,45 @@ function keyFromPoem($poem, $line) {
   $sentence = mb_substr($sentence, 0, 20);
   // That's the key
   return $sentence;
+}
+
+// Encipher
+function encipher($plaintext, $swappos, $d, $cb, $tt1, $tt2, $msgnum_keygroup) {
+  // Encipher
+  // Process plaintext
+  $plaintext_numbers = encodeNumbers($plaintext);
+  $plaintext_chopped = swapHalves($plaintext_numbers, $swappos);
+  $plaintext_checkerboarded = $cb->checkerboardSubstitution($plaintext_chopped);
+  // Bodged? Height is int(cipher_length / table width). Does that interact
+  // with the disruption areas properly?
+  $cipher_length = strlen($plaintext_checkerboarded);
+  $tt2->setCipherLength($cipher_length);
+  $tt1->fillTableaux($plaintext_checkerboarded);
+  $plaintext_transposed1 = $tt1->getTransposed();
+  $tt2->fillTableaux($plaintext_transposed1);
+  $plaintext_transposed2 = $tt2->getTransposed();
+  $ciphertext = fiveGroups($plaintext_transposed2, $msgnum_keygroup,
+			   $d->getMessageNumberPosition());
+  return $ciphertext;
+}
+
+// Decipher
+function decipher($ciphertext, $filler, $cb, $tt1, $tt2) {
+  // Decipher
+  $ciphertext_arr = fiveGroups2Arr($ciphertext);
+  $idx = sizeof($ciphertext_arr) - 5;
+  $message_number = $ciphertext_arr[$idx];
+  $ciphertext_arr = array_merge(array_slice($ciphertext_arr, 0, $idx),
+				array_slice($ciphertext_arr, $idx + 1));
+  $ciphertext_str = fiveGroupsArr2Str($ciphertext_arr);
+  $tt2->decipherTextFillTableaux($ciphertext_str);
+  $undisrupted_stream = $tt2->undisruptTableaux();
+  $tt1->decipherTextFillTableaux($undisrupted_stream);
+  $fig2stream = $tt1->readOutByRows();
+  $plaintext_str1 = $cb->unsubstitutions($fig2stream, $filler);
+  $plaintext = unswapHalves($plaintext_str1);
+
+  return $plaintext;
 }
 
 ?>

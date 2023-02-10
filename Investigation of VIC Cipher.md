@@ -72,6 +72,7 @@ Nothing wrong with that - they do get the length of the ciphertext to a five cha
 - With skyhook code now removed, the code properly enciphers the book's example message
 - Improve code and handling to better reflect what's been learned
 - Reassess the "214" issue
+- Chain encipher then decipher so as to check it works both ways
 
 # Keys
 Book states four keys:
