@@ -6,9 +6,9 @@ Alas I can't find an online copy of the chapter. While there are voluminous note
 
 # Measuring success
 ✓ Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
-- Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
-- Can complete above from command line
-- Optional: if I find other reimplementations, can exchange messages with them
+☐ Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
+☐ Can complete above from command line
+☐ Optional: if I find other reimplementations, can exchange messages with them
 I'm aware that there may be errors in the data I've used, so I'd like also to determine which if any are correct.
 
 # Process
@@ -33,18 +33,33 @@ Book specifies that encipherment will be described.
     1. This gives us a stream starting 9 69 20 63 ... (See [Figure 2](#figure-2)), each digit to be handled individually, so: 9 6 9 2 0 6 3 ...
 1. Establish the height of the second transposition table from the length of the stream just created
 1. Pass through first transposition table 17 cols by N (See [Figure 3](#figure-3))
-    1. First two rows were prepared at the derivation stage
+    1. The width and first two rows were prepared at the derivation stage
     1. Take the stream from step 7 and fill in the first table from the third row moving left to right, top to bottom
 1. Pass through second transposition table (See [Figure 4](#figure-4))
-    1. Width was established at the derivations stage, height established after the checkerboard stage
+    1. Width was again established at the derivations stage, height established after the checkerboard stage
     1. Top two rows were prepared at the derivation stage
     1. Create disruption areas based on "1" in second row, with area extending to right, and on following row starting one character to right, and so on. Once there are no more to move to right, skip a row, and repeat with "2" in the second row
-	- Disruption starts right of * in each row in this document, but do not actually exist in the processing
-    3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2" and so on.
+	    - Disruption starts right of * in each row in this document, but do not actually exist in the processing
+    3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2", and so on.
     4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table
     5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.
-1. Construct the output stream, reading down the "1" column from the second transposition table, ignoring disruptor space, and taking five digits at a time.
-1. Insert a keygroup (20818) to be the fifth group before message ends, that location being determined at the derivations stage
+1. Construct the output stream, reading down the "1" column from the second transposition table, including disruptor space, and taking five digits at a time.
+1. Insert the message number keygroup (20818) to be the fifth group before message ends, that location being determined at the derivations stage
+
+# "214"
+Figure 2 asserts that the substitution of the Russian text, via the checkerboard, terminates with the numbers "2 1 4" which it describes as having the meaning "N U L L S", presumably for Null.
+Nothing wrong with that - they do get the length of the ciphertext to a five character boundary. However, how do they get to "Null"? I missed this during the enciphering stage,  but when it comes to deciphering, how would anyone know that Null is intended? How would they know they don't mean "эа"?
+- There is no "null" marker. Although there is `ПЛ` with an undetermined use, it does not appear in the example.
+- There are no "null" cells. While `6 1 2` appear as empty, each of them has meaning for all ten digits that could follow
+- It could be the characters were chosen to be jarring unlikely to appear as they do
+    - According to [this site](https://www.sttmedia.com/characterfrequency-russian) the characters `Щ` and `Ф` both have a lower frequency than `Э`
+    - The same site suggests `эа` are infrequently found together
+- Grepping for through [this Russian dictionary](https://github.com/hingston/russian/blob/master/100000-russian-words.txt) suggests `эа` only appear twice: once as the proper name of a God, and the second the word `тиркынэа` which Google and Bing both translate as "tirkynea".
+- That makes me think the expectation is that the Agent will within himself understand that these letters don't fit, and are to be treated as nulls.
+- From my point of view as a programmer, I would need to be suspicious that 0 to 4 characters at the very end of the stream might be filler.
+- To address this problem, I would probably run some kind of statistical analysis of the final section of the text: what is the likelyhood that this run of characters forms a word. When seen against a dictionary, confidence in words should be high. In the last four characters though, runs that do not appear at all often are more likely to be filler.
+- For my own examples, I might instead use `2` (null) for one character filler; `27` (undetermined) for two; `272` (undetermined and null) for three characters; and `2727` (two undetermined) for four.
+- For the test message, I see no way round it but to bodge the final `2 1 4`: continuing to force it in while encrypting the plaintext, and forcibly removing it when decrypting the test ciphertext.
 
 # Writing code
 - First commit has many of the sections I'll be using (constants, command line, classes, functions, main, etc)
@@ -56,6 +71,7 @@ Book specifies that encipherment will be described.
 - Implement the derivations stage
 - With skyhook code now removed, the code properly enciphers the book's example message
 - Improve code and handling to better reflect what's been learned
+- Reassess the "214" issue
 
 # Keys
 Book states four keys:
