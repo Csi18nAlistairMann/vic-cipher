@@ -73,6 +73,7 @@ Nothing wrong with that - they do get the length of the ciphertext to a five cha
 - Improve code and handling to better reflect what's been learned
 - Reassess the "214" issue
 - Chain encipher then decipher so as to check it works both ways
+- Move the mainloop into its own function and rewrite for style.
 
 # Keys
 Book states four keys:
