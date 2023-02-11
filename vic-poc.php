@@ -811,6 +811,9 @@ class Checkerboard {
 //
 
 //
+// Sequence Conversion and Chain Addition as described in the article
+
+//
 // Using array X to create a sequence containing 1..N
 // but where "1" appears at the position the 'earliest' element of
 // X appears at. Examples:
@@ -908,6 +911,9 @@ function chainAddition($digits_arr, $length) {
 }
 
 //
+// Handling of keygroups
+
+//
 // Convert inbound five groups - now missing the message number - into a
 // stream
 function fiveGroupsArr2Str($data_arr) {
@@ -960,20 +966,7 @@ function fiveGroups2Arr($stream) {
 }
 
 //
-// Remove given items from the original alphabet
-// Cyrillic has three chars not used in the VIC Cipher
-function constructAcceptableAlphabet($alphabet, $alphabet_ignore) {
-  if (mb_strlen($alphabet_ignore) > 0) {
-    // Construct the acceptable parts of the alphabet by removing the known
-    // ignorable entries. Yes, could have done that directly, but trying to
-    // show process not shortest method
-    for ($a = 0; $a < mb_strlen($alphabet_ignore) - 1; $a++) {
-      $alphabet = mb_ereg_replace("[" . mb_substr($alphabet_ignore, $a) . "]",
-				  "", $alphabet);
-    }
-  }
-  return $alphabet;
-}
+// Manipulating the halves of messages
 
 //
 // Swap the second half with the first half of the text, with НТ used to mark
@@ -996,32 +989,7 @@ function unswapHalves($stream) {
 }
 
 //
-// Change each occurence of a number such that " 3 " becomes " НЦ333НЦ "
-function encodeNumbers($text) {
-  for($number = 0; $number <= 9; $number++) {
-    $text = str_replace(strval($number), PLACEHOLDER_НЦ .
-			strval($number) . strval($number) . strval($number) .
-			PLACEHOLDER_НЦ, $text);
-  }
-  // Also change PLACEHOLDER_№
-  $text = str_replace("№", PLACEHOLDER_№, $text);
-  return $text;
-}
-
-//
-// Extract a particular line from the poem, remove the white space, and return
-// first 20 chars
-function keyFromPoem($poem, $line) {
-  // Poem must be capitalised already
-  // Take nth line
-  $sentence = $poem[$line - 1];
-  // Remove spaces
-  $sentence = str_replace(" ", "", $sentence);
-  // Take first 20 characters
-  $sentence = mb_substr($sentence, 0, 20);
-  // That's the key
-  return $sentence;
-}
+// Run the major tasks of this program
 
 // Encipher
 function encipher($plaintext, $swappos, $d, $cb, $tt1, $tt2, $msgnum_keygroup) {
@@ -1060,6 +1028,53 @@ function decipher($ciphertext, $filler, $cb, $tt1, $tt2) {
   $plaintext = unswapHalves($plaintext_str1);
 
   return $plaintext;
+}
+
+//
+// Misc
+
+//
+// Remove given items from the original alphabet
+// Cyrillic has three chars not used in the VIC Cipher
+function constructAcceptableAlphabet($alphabet, $alphabet_ignore) {
+  if (mb_strlen($alphabet_ignore) > 0) {
+    // Construct the acceptable parts of the alphabet by removing the known
+    // ignorable entries. Yes, could have done that directly, but trying to
+    // show process not shortest method
+    for ($a = 0; $a < mb_strlen($alphabet_ignore) - 1; $a++) {
+      $alphabet = mb_ereg_replace("[" . mb_substr($alphabet_ignore, $a) . "]",
+				  "", $alphabet);
+    }
+  }
+  return $alphabet;
+}
+
+//
+// Change each occurence of a number such that " 3 " becomes " НЦ333НЦ "
+function encodeNumbers($text) {
+  for($number = 0; $number <= 9; $number++) {
+    $text = str_replace(strval($number), PLACEHOLDER_НЦ .
+			strval($number) . strval($number) . strval($number) .
+			PLACEHOLDER_НЦ, $text);
+  }
+  // Also change PLACEHOLDER_№
+  $text = str_replace("№", PLACEHOLDER_№, $text);
+  return $text;
+}
+
+//
+// Extract a particular line from the poem, remove the white space, and return
+// first 20 chars
+function keyFromPoem($poem, $line) {
+  // Poem must be capitalised already
+  // Take nth line
+  $sentence = $poem[$line - 1];
+  // Remove spaces
+  $sentence = str_replace(" ", "", $sentence);
+  // Take first 20 characters
+  $sentence = mb_substr($sentence, 0, 20);
+  // That's the key
+  return $sentence;
 }
 
 ?>

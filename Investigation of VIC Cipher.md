@@ -6,7 +6,7 @@ Alas I can't find an online copy of the chapter. While there are voluminous note
 
 # Measuring success
 ✓ Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
-☐ Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
+✓ Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
 ☐ Can complete above from command line
 ☐ Optional: if I find other reimplementations, can exchange messages with them
 I'm aware that there may be errors in the data I've used, so I'd like also to determine which if any are correct.
