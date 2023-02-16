@@ -3,20 +3,30 @@
 // Proof of concept that the VIC cipher process has been understood
 // Alistair Mann, 2023
 
+define("ENCIPHER", true);
+define("DECIPHER", false);
+define("CHAIN", 3);
+define("RU_ALPHABET", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ");
+define("RU_ALPHABET_IGNORE", "ЁЙЪ");
+define("BAD_UNSUBSTITUTIONS_ERROR", "Stream corrupt or derivation data wrong\n");
+
 // Testing
-// Force random swap to happen at given pos; null for off
-define("TEST_RANDOM_SWAP_POS", 148);
-// Plaintext must be uppercased first
-define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС ,,В@В,, И ПРОЧТЕНИЕ ПИСЬМА №1.
+if (1) {
+    // Used when calling direct from command line
+
+    // Force random swap to happen at given pos; null for off
+    // Plaintext must be uppercased first
+    define("TEST_PLAINTEXT", "1. ПОЗДРАВЛЯЕМ С БЛАГОПОЛУЧНЫМ ПРИБЫТИЕМ. ПОДТВЕРЖДАЕМ ПОЛУЧЕНИЕ ВАШЕГО ПИСЬМА В АДРЕС ,,В@В,, И ПРОЧТЕНИЕ ПИСЬМА №1.
 2. ДЛЯ ОРГАНИЗАЦИИ ПРИКРЫТИЯ МЫ ДАЛИ УКАЗАНИЕ ПЕРЕДАТЬ ВАМ ТРИ ТЫСЯЧИ МЕСТНЫХ. ПЕРЕД ТЕМ КАК ИХ ВЛОЖИТЬ В КАКОЕ ЛИБО ДЕЛО ПОСОВЕТУИТЕСЬ С НАМИ, СООБЩИВ ХАРАКТЕРИСТИКУ ЭТОГО ДЕЛА.
 3. ПО ВАШЕИ ПРОСЬБЕ РЕЦЕПТУРУ ИЗГОТОВЛЕНИЯ МЯГКОИ ПЛЕНКИ И НОВОСТЕИ ПЕРЕДАДИМ ОТДЕЛЬНО ВМЕСТЕ С ПИСЬМОМ МАТЕРИ.
 4. ГАММЫ ВЫСЫЛАТЬ ВАМ РАНО. КОРОТКИЕ ПИСЬМА ШИФРУИТЕ, А ПОБОЛЬШЕТИРЕ ДЕЛАИТЕ СО ВСТАВКАМИ. ВСЕ ДАННЫЕ О СЕБЕ, МЕСТО РАБОТЫ, АДРЕС И Т.Д. В ОДНОИ ШИФРОВКЕ ПЕРЕДАВАТЬ НЕЛЬЗЯ. ВСТАВКИ ПЕРЕДАВАИТЕ ОТДЕЛЬНО.
 5. ПОСЫЛКУ ЖЕНЕ ПЕРЕДАЛИ ЛИЧНО. С СЕМЬЕИ ВСЕ БЛАГОПОЛУЧНО. ЖЕЛАЕМ УСПЕХА. ПРИВЕТ ОТ ТОВАРИЩЕИ
 №1 ДРОБЬО 3 ДЕКАБРЯ");
-// The "214" problem: padding to a five group boundary but there's no
-// explanation as to how that sequence was arrived at.
-define('TEST_FILLER_MATERIAL', '2142');
-define("TEST_CIPHERTEXT", "14546 36056 64211 08919 18710 71187 71215 02906 66036 10922
+    // 2 is null, idk how 1 4 arrived at, repeat to maximum five chars
+    define('TEST_PADDING_MATERIAL', '2142');
+    // The "214" problem: padding to a five group boundary but there's no
+    // explanation as to how that sequence was arrived at.
+    define("TEST_CIPHERTEXT", "14546 36056 64211 08919 18710 71187 71215 02906 66036 10922
 11375 61238 65634 39175 37378 31013 22596 19291 17463 23551
 88527 10130 01767 12366 16669 97846 76559 50062 91171 72332
 19262 69849 90251 11576 46121 24666 05902 19229 56150 23521
@@ -37,32 +47,45 @@ define("TEST_CIPHERTEXT", "14546 36056 64211 08919 18710 71187 71215 02906 66036
 66098 60959 71521 02334 21212 51110 85227 98768 11125 05321
 53152 14191 12166 12715 03116 43041 74822 72759 29130 21947
 15764 96851 20818 22370 11391 83520 62297");
-// Poem must be capitalised and in the usable alpabet already, and with one
-// line per element
-define("TEST_POEM", array("СНОВА ЗАМЕРЛО ВСЕ ДО РАССВЕТА",
-                          "ДВЕРЬ НЕ СКРИПНЕТ НЕ ВСПЫХНЕТ ОГОНЬ",
-                          "ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
-                          "ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
-                          "ТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО",
-                          "ОДИНОКАЯ БРОДИТ ГАРМОНЬ",
-                          "ТО ПОЙДЕТ НА ПОЛЯ ЗА ВОРОТА",
-                          "ТО ВЕРНЕТСЯ ОБРАТНО ОПЯТЬ",
-                          "СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
-                          "И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
-                          "СЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО",
-                          "И НЕ МОЖЕТ НИКАК ОТЫСКАТЬ",
-                          "ВЕЕТ С ПОЛЯ НОЧНАЯ ПРОХЛАДА",
-                          "С ЯБЛОНЬ ЦВЕТ ОБЛЕТАЕТ ГУСТОЙ",
-                          "ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
-                          "ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
-                          "ТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО",
-                          "ТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ",
-                          "МОЖЕТ РАДОСТЬ ТВОЯ НЕДАЛЕКО",
-                          "ДА НЕ ЗНАЕТ ЕЕ ЛИ ТЫ ЖДЕШЬ",
-                          "ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
-                          "ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ",
-                          "ЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО",
-                          "ЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ"));
+    // Poem must be capitalised and in the usable alphabet already, and with one
+    // line per element
+    define("TEST_POEM", "СНОВА ЗАМЕРЛО ВСЕ ДО РАССВЕТА\nДВЕРЬ НЕ СКРИПНЕТ НЕ ВСПЫХНЕТ ОГОНЬ\nТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО\nОДИНОКАЯ БРОДИТ ГАРМОНЬ\nТОЛЬКО СЛЫШНО НА УЛИЦЕ ГДЕ-ТО\nОДИНОКАЯ БРОДИТ ГАРМОНЬ\nТО ПОЙДЕТ НА ПОЛЯ ЗА ВОРОТА\nТО ВЕРНЕТСЯ ОБРАТНО ОПЯТЬ\nСЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО\nИ НЕ МОЖЕТ НИКАК ОТЫСКАТЬ\nСЛОВНО ИЩЕТ В ПОТЕМКАХ КОГО-ТО\nИ НЕ МОЖЕТ НИКАК ОТЫСКАТЬ\nВЕЕТ С ПОЛЯ НОЧНАЯ ПРОХЛАДА\nС ЯБЛОНЬ ЦВЕТ ОБЛЕТАЕТ ГУСТОЙ\nТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО\nТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ\nТЫ ПРИЗНАЙСЯ КОГО ТЕБЕ НАДО\nТЫ СКАЖИ ГАРМОНИСТ МОЛОДОЙ\nМОЖЕТ РАДОСТЬ ТВОЯ НЕДАЛЕКО\nДА НЕ ЗНАЕТ ЕЕ ЛИ ТЫ ЖДЕШЬ\nЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО\nЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ\nЧТО Ж ТЫ БРОДИШЬ ВСЮ НОЧЬ ОДИНОКО\nЧТО Ж ТЫ ДЕВУШКАМ СПАТЬ НЕ ДАЕШЬ");
+    define('MESSAGE_NUMBER_KEYGROUP', "20818"); // Different group each message
+    define("TEST_RANDOM_SWAP_POS", 148); // null for random, when needed
+
+    $randomSwapPos = TEST_RANDOM_SWAP_POS;
+    $alphabet = RU_ALPHABET;
+    $alphabetIgnore = RU_ALPHABET_IGNORE;
+    $key1 = "СНЕГОПА";
+    $key2 = 3; // keyFromPoem(TEST_POEM, 3); // 3 for third line
+    $key3 = "3/9/1945"; // Just the digits are used
+    $key4 = 13; // Agent's personal identifier
+    $msgnumKeygroup = MESSAGE_NUMBER_KEYGROUP;
+    $padding = TEST_PADDING_MATERIAL;
+    $ciphertext = TEST_CIPHERTEXT;
+    $plaintext = TEST_PLAINTEXT;
+    $direction = CHAIN; //ENCIPHER;
+    if ($direction !== DECIPHER) {
+        $message = $plaintext;
+    } else {
+        $message = $ciphertext;
+    }
+
+} else {
+    // Used when run from batch file
+
+    define('TEST_PLAINTEXT', 'EMPTY');
+    define('TEST_POEM', 'EMPTY');
+    define('TEST_PADDING_MATERIAL', '6767');
+    define("TEST_RANDOM_SWAP_POS", null); // null for random, when needed
+    define('MESSAGE_NUMBER_KEYGROUP', "00000"); // Different group each message
+    $key1 = '';
+    $key2 = '';
+    $key3 = '';
+    $key4 = '';
+    $message = '';
+    $direction = ENCIPHER;
+}
 
 // Constants
 // Placeholders are needed to get single character control codes
@@ -72,8 +95,6 @@ define("PLACEHOLDER_ПВТ", '@'); // repeat
 define("PLACEHOLDER_ПЛ", '#'); // undetermined
 define("PLACEHOLDER_№", '&'); // Literally No.
 
-define("RU_ALPHABET", "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ");
-define("RU_ALPHABET_IGNORE", "ЁЙЪ");
 define("NUMERIC_ALPHABET", "1234567890"); // Single digit conversion sequences
 define("VIC_CHECKERBOARD_WIDTH", 11);
 define("VIC_CHECKERBOARD_HEIGHT", 5);
@@ -82,33 +103,71 @@ define("CHECKERBOARD_CONTROL_CHARS", array(array(3, '.', ',', PLACEHOLDER_ПЛ),
                                                  PLACEHOLDER_НТ)));
 define("CHECKERBOARD_DEFAULT_VAL", ' ');
 // true=encipher, false=decipher, 3=enc then dec. Supercede on command line later
-define("ENCIPHER", 3);
 define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
-define('MESSAGE_NUMBER_KEYGROUP', "20818"); // Different group each message
-// 2 is null, idk how 1 4 arrived at, repeat to maximum five chars
 
 // Handle command line
 // Forced for now
-$alphabet = RU_ALPHABET;
-$alphabetIgnore = RU_ALPHABET_IGNORE;
-$key1 = "СНЕГОПА";
-$key2 = keyFromPoem(TEST_POEM, 3); // 3 for third line
-$key3 = "3/9/1945"; // Just the digits are used
-$key4 = 13; // Agent's personal identifier
-$plaintext = TEST_PLAINTEXT;
-$ciphertext = TEST_CIPHERTEXT;
-$msgnumKeygroup = MESSAGE_NUMBER_KEYGROUP;
-$direction = ENCIPHER;
-$randomSwapPos = TEST_RANDOM_SWAP_POS;
-$padding = TEST_FILLER_MATERIAL;
-$original = TEST_PLAINTEXT;
 
-mainloop($alphabet, $alphabetIgnore, $key1, $key2, $key3, $key4,
-         $msgnumKeygroup, $direction, $randomSwapPos, $padding,
-         $original, $plaintext, $ciphertext);
+define('HELP_MSG', "Usage: php vic-poc.php [OPTION]...
+Encipher or decipher a message using the VIC Cipher
+
+With no FILE, or when FILE is -, read standard input.
+
+  -1, --key1=WORD          Use WORD for first key
+  -2, --key2=NUMBER        Use NUMBER'th line of poem for second key
+  -3, --key3=DATE          Use DATE for third key
+  -4, --key4=NUMBER        Use NUMBER for Agent's identifier
+  -a, --alphabet=STRING    Use STRING as alphabet (Default=Cyrillic)
+  -b, --ignore-alphabet=STRING
+                           Remove from alphabet any character in STRING. Used
+                           to remove diacritics (Default=Cyrillic diacritics)
+  -d, --decrypt=VALUE      Encrypt if missing, Decrypt if no value, Encrypt
+                           then Decrypt otherwise
+  -h, --help               This message
+  -m, --message=STRING     Message to encrypt or decrypt
+  -n, --msgnum=STRING      Five numberic characters used to identify this
+                           message
+  -p, --padding=STRING     Four numeric characters used to pad last keygroup.
+                           (Default=2727)
+  -s, --swappos=NUMBER     Swap start and end of message at position NUMBER.
+                           (Default=" . TEST_RANDOM_SWAP_POS . ")
+  -t, --poem=STRING        Use STRING to form poem part of key3. Lines marked
+                           by \\n or \\r\\n
+
+Examples:
+  php ./vic-poc.php -");
+
+//
+// Merge command line and defines, then process
+$a_opt = handleArgument('', 'alphabet', ':', RU_ALPHABET);
+$b_opt = handleArgument('', 'ignore-alphabet', ':', RU_ALPHABET_IGNORE);
+$d_opt = handleArgument('', 'decrypt', '::', $direction);
+$d_opt = ($d_opt !== ENCIPHER && $d_opt !== DECIPHER) ? 3 : $d_opt;
+$h_opt = handleArgument('h', 'help', '', true);
+$k1_opt = handleArgument('', 'key1', ':', $key1);
+$k2_opt = handleArgument('', 'key2', ':', $key2);
+$k2_opt = intval($k2_opt);
+$k3_opt = handleArgument('', 'key3', ':', $key3);
+$k4_opt = handleArgument('', 'key4', ':', $key4);
+$k4_opt = intval($k4_opt);
+$m_opt = handleArgument('', 'message', ':', $message);
+$n_opt = handleArgument('', 'msgnum', ':', '');
+$n_opt = substr($n_opt . MESSAGE_NUMBER_KEYGROUP, 0, 5);
+$p_opt = handleArgument('', 'padding', ':', TEST_PADDING_MATERIAL);
+$p_opt = substr($p_opt, 0, 4);
+$s_opt = handleArgument('', 'swappos', ':', TEST_RANDOM_SWAP_POS);
+$s_opt = intval($s_opt);
+$t_opt = handleArgument('', 'poem', ':', TEST_POEM);
+$t_opt = mb_ereg_replace("\\\\r", '', $t_opt);
+$t_opt = mb_split('\\n', $t_opt);
+$k2_opt = keyFromPoem($t_opt, $k2_opt);
+
+mainloop($a_opt, $b_opt,
+         $k1_opt, $k2_opt, $k3_opt, $k4_opt, $n_opt, $d_opt, $s_opt, $p_opt,
+         $m_opt);
 exit;
 
 //
@@ -117,6 +176,91 @@ exit;
 //
 // Classes
 //
+
+//
+// Handling of 5 digit keygroups
+class FiveDigitGroups
+{
+    private $msgnumKeygroup;
+    private $ciphertextArr;
+
+    // We want to make available the message ID keygroup (which we know to be
+    // in position $index), and also make the stream available as an array
+    // without that keygroup
+    public function __construct($message, $index)
+    {
+        $cta = $this->stream2Arr($message);
+        $idx = sizeof($cta) - $index;
+        $this->msgnumKeygroup = $cta[$idx];
+        $this->ciphertextArr = array_merge(array_slice($cta, 0, $idx),
+                                           array_slice($cta, $idx + 1));
+    }
+
+    //
+    // Convert inbound five groups - now missing the message number - into a
+    // stream
+    public static function fiveGroupsArr2Str($dataArr)
+    {
+        $stream = '';
+        for ($a = 0; $a < sizeof($dataArr); $a++) {
+            $stream .= $dataArr[$a];
+        }
+        return $stream;
+    }
+
+    //
+    // Prepare the final ciphertext for output by grouping into groups of five
+    // with ten such groups per row
+    public static function fiveGroups($stream, $keygroup, $position)
+    {
+        // Construct the groups of five
+        $page = array();
+        for ($idx = 0; $idx < strlen($stream); $idx += FIVEGROUP_NUM) {
+            $page[] = substr($stream, $idx, FIVEGROUP_NUM);
+        }
+
+        // Insert message number
+        $sz = sizeof($page);
+        $position--;
+        $page = array_merge(array_slice($page, 0, $sz - $position),
+                            array($keygroup),
+                            array_slice($page, $sz - $position));
+
+        // Construct the output - spaces follows each except last which has \n
+        $output = '';
+        for ($idx = 0; $idx < sizeof($page) - 1; $idx += CIPHERTEXT_PAGEWIDTH) {
+            for ($line = 0; $line < CIPHERTEXT_PAGEWIDTH; $line++) {
+                if (array_key_exists($idx + $line, $page)) {
+                    $output .= $page[$idx + $line] . ' ';
+                }
+            }
+            $output = trim($output) . "\n";
+        }
+
+        // Remove final \n
+        return trim($output);
+    }
+
+    //
+    // Take the message enciphered into a text stream of groups of five and turn
+    // it into an array
+    private function stream2Arr($stream)
+    {
+        $stream = str_replace("\n", ' ', $stream);
+        $rv = explode(' ', $stream);
+        return $rv;
+    }
+
+    public function getMsgNumKeygroup()
+    {
+        return $this->msgnumKeygroup;
+    }
+
+    public function getCiphertextArr()
+    {
+        return $this->ciphertextArr;
+    }
+}
 
 //
 // Derivations class uses the factors known to the agent to reconstruct the
@@ -133,13 +277,9 @@ class Derivations
     private $alphabetUsable;
     private $key1;
 
-    // All factors are available at the start
-    public function __construct($alphabet, $word, $poem, $date, $id, $msgNum)
-    {
-        // Store some for later availability to the Checkerboard
-        $this->alphabetUsable = $alphabet;
-        $this->key1 = $word;
-
+    //
+    // Elective point to derive the various data
+    public function doDerivations($alphabet, $word, $poem, $date, $id, $msgNum) {
         // The "date" key is used twice, first to indicate the position from the
         // end at which the message number is to be inserted, and then develop
         // to Line C
@@ -157,7 +297,7 @@ class Derivations
         // chain addition 91724 out to ten digits = 9172408964
         $linec = array();
         for ($a = 0; $a < 5; $a++) {
-            $linec[$a] = ($msgNum[$a] - $this->date[$a]) % 10;
+            $linec[$a] = modulo(($msgNum[$a] - $this->date[$a]), 10);
             if ($linec[$a] < 0) {
                 $linec[$a] += 10;
             }
@@ -180,7 +320,7 @@ class Derivations
         // H = G mapped to Er - poem right side seq.conv.
         $this->lineH = array_fill(0, 10, '');
         for ($a = 0; $a < 10; $a++) {
-            $this->lineH[$a] = $lineEr[$lineG[$a] - 1];
+            $this->lineH[$a] = $lineEr[modulo(($lineG[$a] - 1), 10)];
         }
 
         // Upto Line J
@@ -225,6 +365,15 @@ class Derivations
         // sequence which will populate the checkerboard's breeder
         $this->checkerboardBreeder = simpleConvert2Sequential(NUMERIC_ALPHABET,
                                                               $this->k2pCube[5]);
+    }
+
+    // As the message ID is not available without processing, do the lightest
+    // of work here
+    public function __construct($alphabet, $word)
+    {
+        // Store some for later availability to the Checkerboard
+        $this->alphabetUsable = $alphabet;
+        $this->key1 = $word;
     }
 
     // 20818 gets placed where
@@ -320,7 +469,7 @@ class TranspositionTableaux
                 }
             }
             $col++;
-        } while ($found === true && $row < $this->height);
+        } while ($found === true && $row <= $this->height);
     }
 
     //
@@ -331,6 +480,7 @@ class TranspositionTableaux
         // Both start at top left, with first character in stream
         $streamIdx = 0;
         $row = 2;
+        $this->tableaux = array_slice($this->tableaux, 0, 2);
         if ($this->type === TABLEAUX_TYPE_1) {
             // Straight forward left to right, top to bottom
             do {
@@ -385,6 +535,8 @@ class TranspositionTableaux
                 $stream .= $this->tableaux[$row][$col];
             }
         }
+        // Remove blank chars from short row at end
+        $stream = trim($stream);
 
         // Now disrupted areas
         for ($row = 2; $row < $this->height + 1; $row++) {
@@ -401,19 +553,47 @@ class TranspositionTableaux
     // To get a stream that's not disrupted is rather simpler
     public function readOutByRows()
     {
+        // The first table type will not normally have a height
+        if ($this->height === null) {
+            $this->height = sizeof($this->tableaux) - 1;
+        }
+
+        // Create a stream of characters in table from top left to bottom right
         $stream = '';
         for ($row = 2; $row < $this->height + 1; $row++) {
             for ($col = 0; $col < $this->width; $col++) {
                 // CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
                 // empty
                 if (array_key_exists($col, $this->tableaux[$row])) {
-                    if ($this->tableaux[$row][$col] != CHECKERBOARD_DEFAULT_VAL) {
+                    if ($this->tableaux[$row][$col] !== CHECKERBOARD_DEFAULT_VAL) {
                         $stream .= $this->tableaux[$row][$col];
                     }
                 }
             }
         }
         return $stream;
+    }
+
+    //
+    // Debug: print out what the table looks like
+    public function debug_readOutByRows()
+    {
+        // The first table type will not normally have a height
+        $height = sizeof($this->tableaux) - 1;
+
+        for ($row = 0; $row < $height + 1; $row++) {
+            $stream = '';
+            for ($col = 0; $col < $this->width; $col++) {
+                // CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
+                // empty
+                if (array_key_exists($col, $this->tableaux[$row])) {
+                    if ($this->tableaux[$row][$col] !== CHECKERBOARD_DEFAULT_VAL) {
+                        $stream .= substr($this->tableaux[$row][$col] . "  ", 0, 3);
+                    }
+                }
+            }
+            echo $stream . "\n";
+        }
     }
 
     //
@@ -428,6 +608,7 @@ class TranspositionTableaux
         $emptyArr = array_fill(0, $this->height - 1,
                                array_fill(0, $this->width,
                                           CHECKERBOARD_DEFAULT_VAL));
+        $this->tableaux = array_slice($this->tableaux, 0, 2);
         $this->tableaux = array_merge($this->tableaux, $emptyArr);
 
         // Loop through the sequenced columns
@@ -526,6 +707,7 @@ class Checkerboard
     private $editable = true;
     // Associative array such that it maps characters to their coords
     private $cbAarr = array();
+    private $padding;
 
     //
     // fillBody() takes an array of characters and places them in the checkerboard
@@ -569,10 +751,13 @@ class Checkerboard
     // initialise() does the initial set up of the checkerboard in this order:
     // processing chars / key / usable alphabet / 'repeat' symbol. By using this
     // order we can arrange later characters around earlier ones, per the book
-    public function __construct($width, $height, $controlChars, $derivations)
+    public function __construct($width, $height, $controlChars, $derivations, $padding)
     {
         // Unlock the class for editing (used to support a quick lookup)
         $this->editable = true;
+
+        // Store the padding to be used later
+        $this->padding = $padding;
 
         // PHP doesn't have constrained arrays, so we'll fake one
         $this->cb = array_fill(0, $width, array_fill(0, $height, CHECKERBOARD_DEFAULT_VAL));
@@ -672,7 +857,7 @@ class Checkerboard
     // choices behind "2 1 4" are not clear from the book, so I've assumed only
     // the first "2" is actioned for being a null, and the remainder are ignored.
     // It seems to me that cryptographers might choose to vary the content rather
-    // than repeat it, so "2142" would be the maximum filler used
+    // than repeat it, so "2142" would be the maximum padding used
     public function checkerboardSubstitution($text)
     {
         // Loop the string substituting one at a time
@@ -685,13 +870,13 @@ class Checkerboard
 
         // We now know the final ciphertext length, so pad it out to a fit the
         // five groups scheme
-        $output .= substr(TEST_FILLER_MATERIAL, 0,
-                          FIVEGROUP_NUM - strlen($output) % FIVEGROUP_NUM);
+        $output .= substr($this->padding, 0,
+                          FIVEGROUP_NUM - (strlen($output) % FIVEGROUP_NUM));
         return $output;
     }
 
     // Turn the coords back into plaintext
-    public function unsubstitutions($stream, $filler)
+    public function unsubstitutions($stream, $padding)
     {
         // Make up an associative array of the coords with their various plaintext
         // equivalents
@@ -707,23 +892,23 @@ class Checkerboard
             $lcoord = $this->cb[$row][0];
             $lcoordStr .= "$lcoord";
             for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
-                if ($this->cb[$row][$a] != CHECKERBOARD_DEFAULT_VAL) {
+                if ($this->cb[$row][$a] !== CHECKERBOARD_DEFAULT_VAL) {
                     $unsub[($lcoord * 10) + $this->cb[0][$a]] = $this->cb[$row][$a];
                 }
             }
         }
 
         //
-        // There's no nice way to do this: this bodge removes the filler text,
-        // try to remove successively shorter matches. It's possibly there's
-        // no filler, but not possible for more than four
-        if (substr($stream, -4) === $filler) {
+        // There's no nice way to do this: this bodge removes the padding text,
+        // try to remove successively shorter matches. It's possible there's
+        // no padding, but not possible for more than four
+        if (substr($stream, -4) === $padding) {
             $stream = substr($stream, 0, -4);
-        } elseif (substr($stream, -3) === substr($filler, 0, 3)) {
+        } elseif (substr($stream, -3) === substr($padding, 0, 3)) {
             $stream = substr($stream, 0, -3);
-        } elseif (substr($stream, -2) === substr($filler, 0, 2)) {
+        } elseif (substr($stream, -2) === substr($padding, 0, 2)) {
             $stream = substr($stream, 0, -2);
-        } elseif (substr($stream, -1) === substr($filler, 0, 1)) {
+        } elseif (substr($stream, -1) === substr($padding, 0, 1)) {
             $stream = substr($stream, 0, -1);
         }
 
@@ -731,6 +916,7 @@ class Checkerboard
         $idx = 0;
         $coordStream = array();
         $doingNumerics = false;
+        $allLegal = true;
         do {
             // Each time through we take whatever the CB says exists. If we come
             // across the НЦ marker, we change to handling numbers until such
@@ -741,7 +927,13 @@ class Checkerboard
                 $c = substr($stream, $idx, $coordLen);
                 $lcoord = $c[0] * 10;
                 $tcoord = $c[1];
-                if ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
+                // If the coord isn't in the associative array, the stream is
+                // corrupt and/or the credentials are wrong
+                if (!array_key_exists($lcoord + $tcoord, $unsub)) {
+                    $allLegal = false;
+                    break 1;
+
+                } elseif ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
                     $doingNumerics = !$doingNumerics;
                 }
 
@@ -757,7 +949,7 @@ class Checkerboard
             $coordStream[] = $c;
             $idx += $coordLen;
 
-            // If the next coord will be a numeric, handle them seperately
+            // If the next coord will be a numeric, handle them separately
             while ($doingNumerics) {
                 $coordLen = 3;
                 $c = substr($stream, $idx, $coordLen);
@@ -768,37 +960,71 @@ class Checkerboard
                 $c = substr($stream, $idx, 2);
                 $lcoord = $c[0] * 10;
                 $tcoord = $c[1];
-                if ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
+                // Again check against legal but invalid cooords
+                if (!array_key_exists($lcoord + $tcoord, $unsub)) {
+                    $allLegal = false;
+                    break 2;
+
+                } elseif ($unsub[$lcoord + $tcoord] === PLACEHOLDER_НЦ) {
                     break;
                 }
             }
-        } while ($idx < strlen($stream));
+        } while (($idx < strlen($stream)) && ($allLegal === true));
 
-        // Now convert the coords back to plaintext
-        $idx = 0;
-        $text = '';
-        do {
-            $coord = $coordStream[$idx];
-            if ($unsub[$coord] !== PLACEHOLDER_НЦ) {
-                $char = $unsub[$coord];
-                $text .= $char;
+        // If we previously discovered legal but invalid chars, skip the
+        // remainder of the substitutions
+        if ($allLegal === false) {
+            $rv = false;
+
+        } else {
+            // Now convert the coords back to plaintext
+            $idx = 0;
+            $text = '';
+            do {
+                $coord = $coordStream[$idx];
+                // Again check the coord actually exists before access.
+                if (!array_key_exists($coord, $unsub)) {
+                    $allLegal = false;
+                    break 1;
+
+                } elseif ($unsub[$coord] !== PLACEHOLDER_НЦ) {
+                    $char = $unsub[$coord];
+                    $text .= $char;
+
+                } else {
+                    // On НЦ we record the numbers until we see the next НЦ
+                    $idx++;
+                    do {
+                        $char = $coordStream[$idx];
+                        $text .= $char;
+                        $idx++;
+                        // Last check for legal but invalid characters
+                        if (!array_key_exists($coordStream[$idx], $unsub)) {
+                            $allLegal = false;
+                            break 2;
+
+                        } else {
+                            $char = $unsub[$coordStream[$idx]];
+                        }
+
+                    } while ($char !== PLACEHOLDER_НЦ);
+                }
+                $idx++;
+            } while ($idx < sizeof($coordStream));
+
+            // If we found cause to terminate early deal with that first
+            // otherwise return the substituted coords
+            if ($allLegal === false) {
+                $rv = false;
 
             } else {
-                // On НЦ we record the numbers until we see the next НЦ
-                $idx++;
-                do {
-                    $char = $coordStream[$idx];
-                    $text .= $char;
-                    $idx++;
-                } while ($unsub[$coordStream[$idx]] !== PLACEHOLDER_НЦ);
+                //
+                // While we're here, we can swap No. too
+                $text = mb_ereg_replace('[' . PLACEHOLDER_№ . "]", "№", $text);
+                $rv = $text;
             }
-            $idx++;
-        } while ($idx < sizeof($coordStream));
-
-        //
-        // While we're here, we can swap No. too
-        $text = mb_ereg_replace('[' . PLACEHOLDER_№ . "]", "№", $text);
-        return $text;
+        }
+        return $rv;
     }
 }
 
@@ -857,7 +1083,7 @@ function simpleConvert2Sequential($alphabet, $origString)
         for ($b = 0; $b < mb_strlen($string); $b++) {
             // If there's a match, assign next number % 10
             if (mb_substr($string, $b, 1) === mb_substr($alphabet, $a, 1)) {
-                $rv[$b] = ($nextnum) % 10;
+                $rv[$b] = $nextnum % 10;
                 $nextnum++;
             }
         }
@@ -913,64 +1139,6 @@ function chainAddition($digitsArr, $length)
 }
 
 //
-// Handling of keygroups
-
-//
-// Convert inbound five groups - now missing the message number - into a
-// stream
-function fiveGroupsArr2Str($dataArr)
-{
-    $stream = '';
-    for ($a = 0; $a < sizeof($dataArr); $a++) {
-        $stream .= $dataArr[$a];
-    }
-    return $stream;
-}
-
-//
-// Prepare the final ciphertext for output by grouping into groups of five
-// with ten such groups per row
-function fiveGroups($stream, $keygroup, $position)
-{
-    // Construct the groups of five
-    $page = array();
-    for ($idx = 0; $idx < strlen($stream); $idx += FIVEGROUP_NUM) {
-        $page[] = substr($stream, $idx, FIVEGROUP_NUM);
-    }
-
-    // Insert message number
-    $sz = sizeof($page);
-    $position--;
-    $page = array_merge(array_slice($page, 0, $sz - $position),
-                        array($keygroup),
-                        array_slice($page, $sz - $position));
-
-    // Construct the output - spaces follows each except last which has \n
-    $output = '';
-    for ($idx = 0; $idx < sizeof($page) - 1; $idx += CIPHERTEXT_PAGEWIDTH) {
-        for ($line = 0; $line < CIPHERTEXT_PAGEWIDTH; $line++) {
-            if (array_key_exists($idx + $line, $page)) {
-                $output .= $page[$idx + $line] . ' ';
-            }
-        }
-        $output = trim($output) . "\n";
-    }
-
-    // Remove final \n
-    return trim($output);
-}
-
-//
-// Take the message enciphered into a text stream of groups of five and turn
-// it into an array
-function fiveGroups2Arr($stream)
-{
-    $stream = str_replace("\n", ' ', $stream);
-    $rv = explode(' ', $stream);
-    return $rv;
-}
-
-//
 // Manipulating the halves of messages
 
 //
@@ -1014,29 +1182,26 @@ function encipher($plaintext, $swappos, $d, $cb, $tt1, $tt2, $msgnumKeygroup)
     $plaintextTransposed1 = $tt1->getTransposed();
     $tt2->fillTableauxDuringEncrypt($plaintextTransposed1);
     $plaintextTransposed2 = $tt2->getTransposed();
-    $ciphertext = fiveGroups($plaintextTransposed2, $msgnumKeygroup,
-                             $d->getMessageNumberPosition());
+    $ciphertext = FiveDigitGroups::fiveGroups($plaintextTransposed2,
+                                              $msgnumKeygroup,
+                                              $d->getMessageNumberPosition());
     return $ciphertext;
 }
 
 // Decipher
-function decipher($ciphertext, $filler, $cb, $tt1, $tt2)
+function decipher($padding, $cb, $tt1, $tt2, $ciphertextArr)
 {
     // Decipher
-    $ciphertextArr = fiveGroups2Arr($ciphertext);
-    $idx = sizeof($ciphertextArr) - 5;
-    $messageNumber = $ciphertextArr[$idx];
-    $ciphertextArr = array_merge(array_slice($ciphertextArr, 0, $idx),
-                                 array_slice($ciphertextArr, $idx + 1));
-    $ciphertextStr = fiveGroupsArr2Str($ciphertextArr);
+    $ciphertextStr = FiveDigitGroups::fiveGroupsArr2Str($ciphertextArr);
     $tt2->fillTableauxDuringDecrypt($ciphertextStr);
     $undisruptedStream = $tt2->undisruptTableaux();
     $tt1->fillTableauxDuringDecrypt($undisruptedStream);
     $fig2stream = $tt1->readOutByRows();
-    $plaintextStr1 = $cb->unsubstitutions($fig2stream, $filler);
-    $plaintext = unswapHalves($plaintextStr1);
-
-    return array($messageNumber, $plaintext);
+    $plaintextStr1 = $cb->unsubstitutions($fig2stream, $padding);
+    $plaintext = ($plaintextStr1 === false)
+        ? false
+        : unswapHalves($plaintextStr1);
+    return $plaintext;
 }
 
 //
@@ -1090,48 +1255,100 @@ function keyFromPoem($poem, $line)
 }
 
 //
+// Modulo arithmetic forcing values to be positive
+function modulo($a, $modulo)
+{
+    $rv = $a % $modulo;
+    if ($rv < 0) {
+        $rv += $modulo;
+    }
+    return $rv;
+}
+
+//
+// Retrieve a particular command line option
+function handleArgument($short, $long, $val, $default = null)
+{
+    $options = getopt($short, [$long . $val]);
+    $opt = $default;
+    $opt = (isset($options[$short])) ? $options[$short] : $opt;
+    $opt = (isset($options[$long])) ? $options[$long] : $opt;
+    return $opt;
+}
+
+//
 // Mainloop
 
 // With the command line dealt with, now get the proper work done
 function mainloop($alphabet, $alphabetIgnore, $key1, $key2, $key3, $key4,
                   $msgnumKeygroup, $direction, $randomSwapPos, $padding,
-                  $original, $plaintext, $ciphertext)
+                  $message)
 {
     $alphabet_usable = constructUsableAlphabet($alphabet, $alphabetIgnore);
 
     // Set up tables
-    $d = new Derivations($alphabet_usable, $key1, $key2, $key3, $key4,
-                         $msgnumKeygroup);
+    $d = new Derivations($alphabet_usable, $key1);
+    // If we're about to decipher, we need the message id before we get the
+    // checkerboard populated. Enciphering doesn't have that limitation
+    if ($direction === DECIPHER) {
+        $fdgs = new FiveDigitGroups($message, $key3[7]);
+        $msgnumKeygroup = $fdgs->getMsgNumKeygroup();
+        $ciphertextArr = $fdgs->getCiphertextArr();
+    }
+    $d->doDerivations($alphabet_usable, $key1, $key2, $key3, $key4,
+                      $msgnumKeygroup);
     $tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1, $d);
     $tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2, $d);
     $cb = new Checkerboard(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH,
-                           CHECKERBOARD_CONTROL_CHARS, $d);
+                           CHECKERBOARD_CONTROL_CHARS, $d, $padding);
 
-    if ($direction === true) {
-        $ciphertext = encipher($plaintext, $randomSwapPos, $d, $cb, $tt1, $tt2,
+    // Process
+    $rv = 0;
+    if ($direction === ENCIPHER || $direction == CHAIN) {
+        $enciphered = encipher($message, $randomSwapPos, $d, $cb, $tt1, $tt2,
                                $msgnumKeygroup);
-        var_dump($ciphertext);
+        echo $enciphered . "\n";
+    }
 
-    } elseif ($direction === false) {
-        list($msgid, $plaintext) = decipher($ciphertext, $padding, $cb, $tt1, $tt2);
-        var_dump("MsgID: $msgid\n" . $plaintext);
-
-    } else {
-        // Encipher, decipher, and contrast
-        $enciphered = encipher($plaintext, $randomSwapPos, $d, $cb, $tt1, $tt2,
-                               $msgnumKeygroup);
-        list($msgId, $deciphered) = decipher($enciphered, $padding, $cb, $tt1, $tt2);
-
-        $originalSquashed = mb_ereg_replace('[\s]', '', $original);
-
-        if ($originalSquashed === $deciphered) {
-            echo "Passed!\n";
+    if ($direction === DECIPHER || $direction === CHAIN) {
+        if ($direction === CHAIN) {
+            // While, dear reader, we already know the message ID and have the
+            // derivations set up, we want to catch errors: so reobtain the
+            // message ID from where we just encrypted it, and rerun the
+            // derivations because that's what it would affect
+            $fdgs = new FiveDigitGroups($enciphered, $key3[7]);
+            $msgnumKeygroup = $fdgs->getMsgNumKeygroup();
+            $ciphertextArr = $fdgs->getCiphertextArr();
+            $d->doDerivations($alphabet_usable, $key1, $key2, $key3, $key4,
+                              $msgnumKeygroup);
+        }
+        $deciphered = decipher($padding, $cb, $tt1, $tt2, $ciphertextArr);
+        if ($deciphered === false) {
+            echo BAD_UNSUBSTITUTIONS_ERROR;
 
         } else {
-            echo "Failed\nOriginal:\n";
-            var_dump($original);
-            echo "Deciphered:\n";
-            var_dump($deciphered);
+            echo "MsgID: $msgnumKeygroup\n$deciphered\n";
+        }
+
+        // Handle if a decryption error was seen
+        if ($deciphered === false) {
+            $rv = -1;
+
+        } elseif ($direction === CHAIN) {
+            // Otherwise consider if the decryption matches what it should
+            $originalSquashed = mb_ereg_replace('[\s]', '', $message);
+            if ($originalSquashed === $deciphered) {
+                echo "Passed!\n";
+                $rv = 0;
+
+            } else {
+                echo "Failed\nOriginal:\n";
+                var_dump($message);
+                echo "Deciphered:\n";
+                var_dump($deciphered);
+                $rv = 1;
+            }
         }
     }
+    return $rv;
 }
