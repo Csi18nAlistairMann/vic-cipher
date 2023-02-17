@@ -76,6 +76,7 @@ Nothing wrong with that - they do get the length of the ciphertext to a five cha
 - Move the mainloop into its own function and rewrite for style.
 - Add command line use for all but piping
 - Detect error in how short rows of tableaux are handled, and correct
+- Add handling for a piped-in message
 
 # Keys
 Book states four keys:

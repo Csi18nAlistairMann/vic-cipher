@@ -54,6 +54,9 @@ TEST_CIPHERTEXT="14546 36056 64211 08919 18710 71187 71215 02906 66036 10922
 53152 14191 12166 12715 03116 43041 74822 72759 29130 21947
 15764 96851 20818 22370 11391 83520 62297"
 
+#
+# These tests should pass
+
 # Encipher
 RVE=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
 RV=$?
@@ -68,9 +71,6 @@ else
 
     diff /tmp/1 /tmp/2
 fi
-
-#
-# These tests should pass
 
 # Decipher
 RVD=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$TEST_CIPHERTEXT" --decrypt`
@@ -148,6 +148,61 @@ if [ "$RVC" != "$SQUASHED_PLAINTEXT" ]; then
     echo "Chaining fails successfully"
 else
     echo "Chaining succeeds when it shouldn't"
+
+    echo "$RVC" >/tmp/1
+    echo "--"
+    echo "$SQUASHED_PLAINTEXT" >/tmp/2
+
+    diff /tmp/1 /tmp/2
+fi
+
+#
+# These tests should succeed using piped in messages
+
+# Encipher
+RVE=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
+RV=$?
+if [ "$RVE" = "$TEST_CIPHERTEXT" ]; then
+    echo "Encipher w/ pipe passes"
+else
+    echo "Encipher w/ pipe fails"
+
+    echo "$RVE" >/tmp/1
+    echo "--"
+    echo "$TEST_CIPHERTEXT" >/tmp/2
+
+    diff /tmp/1 /tmp/2
+fi
+
+#
+# These tests should pass
+
+# Decipher
+
+RVD=`echo -n "$TEST_CIPHERTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
+SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
+SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
+if [ "$RVD" = "$SQUASHED_PLAINTEXT" ]; then
+    echo "Decipher w/ pipe passes"
+else
+    echo "Decipher w/ pipe fails"
+
+    echo "$RVD" >/tmp/1
+    echo "--"
+    echo "$SQUASHED_PLAINTEXT" >/tmp/2
+
+    diff /tmp/1 /tmp/2
+fi
+
+# Encipher, then decipher
+CIPHERTEXT=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
+RVC=`echo -n $CIPHERTEXT | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
+SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
+SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
+if [ "$RVC" = "$SQUASHED_PLAINTEXT" ]; then
+    echo "Chaining w/ pipe passes"
+else
+    echo "Chaining w/ pipe fails"
 
     echo "$RVC" >/tmp/1
     echo "--"

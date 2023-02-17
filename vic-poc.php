@@ -165,6 +165,9 @@ $t_opt = handleArgument('', 'poem', ':', TEST_POEM);
 $t_opt = mb_ereg_replace("\\\\r", '', $t_opt);
 $t_opt = mb_split('\\n', $t_opt);
 $k2_opt = keyFromPoem($t_opt, $k2_opt);
+// Merge in any piped message, overiding what's on the command line
+$pipedin = stream_get_contents(fopen("php://stdin", "r"));
+$m_opt = ($pipedin === "") ? $m_opt : $pipedin;
 
 mainloop($a_opt, $b_opt,
          $k1_opt, $k2_opt, $k3_opt, $k4_opt, $n_opt, $d_opt, $s_opt, $p_opt,
