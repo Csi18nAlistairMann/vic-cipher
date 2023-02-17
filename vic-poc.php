@@ -1,4 +1,5 @@
 <?php
+
 //
 // Proof of concept that the VIC cipher process has been understood
 // Alistair Mann, 2023
@@ -279,7 +280,8 @@ class Derivations
 
     //
     // Elective point to derive the various data
-    public function doDerivations($alphabet, $word, $poem, $date, $id, $msgNum) {
+    public function doDerivations($alphabet, $word, $poem, $date, $id, $msgNum)
+    {
         // The "date" key is used twice, first to indicate the position from the
         // end at which the message number is to be inserted, and then develop
         // to Line C
@@ -469,7 +471,8 @@ class TranspositionTableaux
                 }
             }
             $col++;
-        } while ($found === true && $row <= $this->height);
+            // <= and + 1 to guarantee an edge case doesn't matter
+        } while ($found === true && $row <= $this->height + 1);
     }
 
     //
@@ -496,21 +499,43 @@ class TranspositionTableaux
             // Not so straightforward: left to right, top to bottom in the areas
             // without disruption, then repeat in the areas with disruption
 
-            // Undisrupted areas first (always starts at left)
+            // The last line or "short row" is handled differently. Calculate
+            // how much data it holds
+            $shortRowSz =
+                strlen($stream) - (($this->height - 2) * $this->width);
+
+            // Undisrupted areas first (always starts at left), full lines only
             do {
-                $this->tableaux[$row] = array(); // Helpful to create unused empty row
+                $this->tableaux[$row] = array(); // Create unused empty row
                 $line = substr($stream, $streamIdx, $this->disruption[$row]);
                 for ($a = 0; $a < strlen($line); $a++) {
                     $this->tableaux[$row][$a] = intval(substr($line, $a, 1));
                 }
                 $streamIdx += $this->disruption[$row];
                 $row++;
-            } while ($streamIdx < strlen($stream) && $row <= $this->height);
+            } while ($streamIdx < strlen($stream) && $row < $this->height);
+
+            // Undisrupted area, short row. There are multiple ways short rows
+            // could be handled, here I'm sticking them on the last line to the
+            // left. Even if we've not reached the disruption area, don't put
+            // more than max. If we don't use all the chars up, that's okay -
+            // the process will fill the remainder in the disrupted area later.
+            $this->tableaux[$row] = array();
+            $sz = $this->disruption[$row];
+            if ($shortRowSz < $this->disruption[$row]) {
+                $sz = $shortRowSz;
+            }
+            $line = substr($stream, $streamIdx, $sz);
+            for ($a = 0; $a < strlen($line); $a++) {
+                $this->tableaux[$row][$a] = intval(substr($line, $a, 1));
+            }
+            $streamIdx += $sz;
 
             // Disrupted areas second
             $row = 2;
             do {
-                $line = substr($stream, $streamIdx, $this->width - $this->disruption[$row]);
+                $line = substr($stream, $streamIdx,
+                               $this->width - $this->disruption[$row]);
                 for ($a = 0; $a < strlen($line); $a++) {
                     $this->tableaux[$row][$this->disruption[$row] + $a]
                         = intval(substr($line, $a, 1));
@@ -530,7 +555,7 @@ class TranspositionTableaux
         $stream = '';
         $row = 2;
         // Undisrupted areas first (always starts at left,
-        for ($row = 2; $row < $this->height + 1; $row++) {
+        for ($row = 2; $row <= $this->height; $row++) {
             for ($col = 0; $col < $this->disruption[$row]; $col++) {
                 $stream .= $this->tableaux[$row][$col];
             }
@@ -539,7 +564,7 @@ class TranspositionTableaux
         $stream = trim($stream);
 
         // Now disrupted areas
-        for ($row = 2; $row < $this->height + 1; $row++) {
+        for ($row = 2; $row <= $this->height; $row++) {
             for ($col = $this->disruption[$row]; $col < $this->width; $col++) {
                 if (array_key_exists($col, $this->tableaux[$row])) {
                     $stream .= $this->tableaux[$row][$col];
@@ -560,12 +585,13 @@ class TranspositionTableaux
 
         // Create a stream of characters in table from top left to bottom right
         $stream = '';
-        for ($row = 2; $row < $this->height + 1; $row++) {
+        for ($row = 2; $row <= $this->height; $row++) {
             for ($col = 0; $col < $this->width; $col++) {
-                // CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
-                // empty
+                // CHECKERBOARD_DEFAULT_VAL addresses shorter columns:
+                // empty they're padded
                 if (array_key_exists($col, $this->tableaux[$row])) {
-                    if ($this->tableaux[$row][$col] !== CHECKERBOARD_DEFAULT_VAL) {
+                    if ($this->tableaux[$row][$col] !==
+                        CHECKERBOARD_DEFAULT_VAL) {
                         $stream .= $this->tableaux[$row][$col];
                     }
                 }
@@ -584,12 +610,16 @@ class TranspositionTableaux
         for ($row = 0; $row < $height + 1; $row++) {
             $stream = '';
             for ($col = 0; $col < $this->width; $col++) {
-                // CHECKERBOARD_DEFAULT_VAL addresses shorter columns: they're padded
-                // empty
+                // CHECKERBOARD_DEFAULT_VAL addresses shorter columns:
+                // they're padded empty
                 if (array_key_exists($col, $this->tableaux[$row])) {
-                    if ($this->tableaux[$row][$col] !== CHECKERBOARD_DEFAULT_VAL) {
-                        $stream .= substr($this->tableaux[$row][$col] . "  ", 0, 3);
+                    if ($this->tableaux[$row][$col] !==
+                        CHECKERBOARD_DEFAULT_VAL) {
+                        $stream .= substr($this->tableaux[$row][$col] .
+                                          "  ", 0, 3);
                     }
+                } else {
+                    $stream .= "   ";
                 }
             }
             echo $stream . "\n";
@@ -597,14 +627,14 @@ class TranspositionTableaux
     }
 
     //
-    // Take the enciphered stream and fill the tableaux according to the sequence
-    // given in row[1]
+    // Take the enciphered stream and fill the tableaux according to the
+    // sequence given in row[1]
     public function fillTableauxDuringDecrypt($stream)
     {
         // Use length to derive table dimensions
         $ciphertextLen = strlen($stream);
         $this->setCipherLength($ciphertextLen);
-        $shortRowSz = $ciphertextLen - ($this->height - 2) * $this->width;
+        $shortRowSz = $ciphertextLen - (($this->height - 2) * $this->width);
         $emptyArr = array_fill(0, $this->height - 1,
                                array_fill(0, $this->width,
                                           CHECKERBOARD_DEFAULT_VAL));
@@ -620,8 +650,8 @@ class TranspositionTableaux
             do {
                 // Check if column matches the sequence number
                 if ($this->tableaux[1][$idx] === $column) {
-                    // If so, fill the tableaux using the stream & accounting that some
-                    // columns are longer than others
+                    // If so, fill the tableaux using the stream & accounting
+                    //  that some columns are longer than others
                     $colHeight = ($idx < $shortRowSz) ?
                         $this->height - 1 :
                         $this->height - 2;
@@ -656,7 +686,7 @@ class TranspositionTableaux
     // availability allows generation of the disruption data
     public function setCipherLength($length)
     {
-        // +2 to accomodate breeder lines
+        // +2 to accomodate breeder lines but not short row
         $this->height = intval($length / $this->width) + 2;
         if ($this->type === TABLEAUX_TYPE_2) {
             $this->generateDisruptionData();
@@ -710,9 +740,9 @@ class Checkerboard
     private $padding;
 
     //
-    // fillBody() takes an array of characters and places them in the checkerboard
-    // start at Row 2, in the given column, and filling down and right where there
-    // are free spaces
+    // fillBody() takes an array of characters and places them in the
+    // checkerboard start at Row 2, in the given column, and filling down and
+    //  right where there are free spaces
     public function fillBody($startx, $data)
     {
         // setup
@@ -738,7 +768,8 @@ class Checkerboard
                 }
                 // Next character goes down a row
                 $pos += VIC_CHECKERBOARD_WIDTH;
-                // If down a row is off the bottom, go back up and right one column
+                // If down a row is off the bottom, go back up and right one
+                //  column
                 if ($pos >= VIC_CHECKERBOARD_WIDTH * VIC_CHECKERBOARD_HEIGHT) {
                     $pos -= (3 * VIC_CHECKERBOARD_WIDTH);
                     $pos++;
@@ -751,7 +782,8 @@ class Checkerboard
     // initialise() does the initial set up of the checkerboard in this order:
     // processing chars / key / usable alphabet / 'repeat' symbol. By using this
     // order we can arrange later characters around earlier ones, per the book
-    public function __construct($width, $height, $controlChars, $derivations, $padding)
+    public function __construct($width, $height, $controlChars, $derivations,
+                                $padding)
     {
         // Unlock the class for editing (used to support a quick lookup)
         $this->editable = true;
@@ -760,9 +792,12 @@ class Checkerboard
         $this->padding = $padding;
 
         // PHP doesn't have constrained arrays, so we'll fake one
-        $this->cb = array_fill(0, $width, array_fill(0, $height, CHECKERBOARD_DEFAULT_VAL));
+        $this->cb = array_fill(0, $width,
+                               array_fill(0, $height,
+                                          CHECKERBOARD_DEFAULT_VAL));
 
-        // Fill in the control chars: "message starts", "change to/from numeric", etc
+        // Fill in the control chars: "message starts", "change to/from
+        // numeric", etc
         if ($controlChars !== null) {
             for ($a = 0; $a < sizeof($controlChars); $a++) {
                 $data = $controlChars[$a];
@@ -783,14 +818,14 @@ class Checkerboard
         }
 
         // Remove the key's characters from the usable alphabet
-        $alphabetNokey = constructUsableAlphabet($derivations->getAlphabetUsable(),
-                                                 $derivations->getKey1());
+        $smlAlphab = constructUsableAlphabet($derivations->getAlphabetUsable(),
+                                             $derivations->getKey1());
 
         // Continue with the usable alphabet
-        if ($alphabetNokey !== null) {
+        if ($smlAlphab !== null) {
             $alphabetArr = array();
-            for ($a = 0; $a < mb_strlen($alphabetNokey); $a++) {
-                $alphabetArr[] = mb_substr($alphabetNokey, $a, 1);
+            for ($a = 0; $a < mb_strlen($smlAlphab); $a++) {
+                $alphabetArr[] = mb_substr($smlAlphab, $a, 1);
             }
             $x = 1;
             $this->fillBody($x, $alphabetArr);
@@ -814,8 +849,8 @@ class Checkerboard
     // Return the substitution for a single character
     public function checkerboardSubstituteOne($char)
     {
-        // Make lookups easier: first time through create an associative array and
-        // use that thereafter
+        // Make lookups easier: first time through create an associative array
+        // and use that thereafter
         if ($this->editable === true) {
             $this->editable = false;
 
@@ -832,14 +867,16 @@ class Checkerboard
                 for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
                     $c = $this->cb[$row][$a];
                     if ($c !== CHECKERBOARD_DEFAULT_VAL) {
-                        $this->cbAarr[$c] = $this->cb[$row][0] . $this->cb[0][$a];
+                        $this->cbAarr[$c] = $this->cb[$row][0] .
+                            $this->cb[0][$a];
                     }
                 }
             }
         }
 
-        // Digits are not substituted at all; otherwise the character is substituted
-        // per the associative array. Any remaining characters are silently dropped
+        // Digits are not substituted at all; otherwise the character is
+        // substituted per the associative array. Any remaining characters are
+        //  silently dropped
         $rv = '';
         if ($char >= "0" && $char <= "9") {
             $rv = $char;
@@ -855,9 +892,10 @@ class Checkerboard
     //
     // Return the substitution for a stream of text having padded it out. The
     // choices behind "2 1 4" are not clear from the book, so I've assumed only
-    // the first "2" is actioned for being a null, and the remainder are ignored.
-    // It seems to me that cryptographers might choose to vary the content rather
-    // than repeat it, so "2142" would be the maximum padding used
+    // the first "2" is actioned for being a null, and the remainder are
+    // ignored. It seems to me that cryptographers might choose to vary the
+    //  content rather than repeat it, so "2142" would be the maximum padding
+    //  used
     public function checkerboardSubstitution($text)
     {
         // Loop the string substituting one at a time
@@ -878,8 +916,8 @@ class Checkerboard
     // Turn the coords back into plaintext
     public function unsubstitutions($stream, $padding)
     {
-        // Make up an associative array of the coords with their various plaintext
-        // equivalents
+        // Make up an associative array of the coords with their various
+        // plaintext equivalents
         // Single digit row first
         $unsub = array();
         for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
@@ -893,7 +931,8 @@ class Checkerboard
             $lcoordStr .= "$lcoord";
             for ($a = 1; $a < VIC_CHECKERBOARD_WIDTH; $a++) {
                 if ($this->cb[$row][$a] !== CHECKERBOARD_DEFAULT_VAL) {
-                    $unsub[($lcoord * 10) + $this->cb[0][$a]] = $this->cb[$row][$a];
+                    $unsub[($lcoord * 10) + $this->cb[0][$a]] =
+                        $this->cb[$row][$a];
                 }
             }
         }
@@ -918,9 +957,9 @@ class Checkerboard
         $doingNumerics = false;
         $allLegal = true;
         do {
-            // Each time through we take whatever the CB says exists. If we come
-            // across the НЦ marker, we change to handling numbers until such
-            // time as we see another НЦ.
+            // Each time through we take whatever the CB says exists. If we
+            // come across the НЦ marker, we change to handling numbers until
+            // such time as we see another НЦ.
             if (strpos($lcoordStr, $stream[$idx]) !== false) {
                 // a double digit coord
                 $coordLen = 2;
@@ -1065,7 +1104,8 @@ class Checkerboard
 // function handles these
 function simpleConvert2Sequential($alphabet, $origString)
 {
-    // On occasion the text arrives in array format - convert it to string first
+    // On occasion the text arrives in array format - convert it to string
+    // first
     $string = $origString;
     if (is_array($origString)) {
         $string = '';
@@ -1150,7 +1190,8 @@ function swapHalves($text, $position = null)
         $len = mb_strlen($text);
         $position = random_int(0, $len - 1);
     }
-    return mb_substr($text, $position) . PLACEHOLDER_НТ . mb_substr($text, 0, $position);
+    return mb_substr($text, $position) . PLACEHOLDER_НТ .
+        mb_substr($text, 0, $position);
 }
 
 //
@@ -1173,7 +1214,8 @@ function encipher($plaintext, $swappos, $d, $cb, $tt1, $tt2, $msgnumKeygroup)
     // Process plaintext
     $plaintextNumbers = encodeNumbers($plaintext);
     $plaintextChopped = swapHalves($plaintextNumbers, $swappos);
-    $plaintextCheckerboarded = $cb->checkerboardSubstitution($plaintextChopped);
+    $plaintextCheckerboarded =
+        $cb->checkerboardSubstitution($plaintextChopped);
     // Bodged? Height is int(cipherLength / table width). Does that interact
     // with the disruption areas properly?
     $cipherLength = strlen($plaintextCheckerboarded);
@@ -1217,8 +1259,8 @@ function constructUsableAlphabet($alphabet, $alphabetIgnore)
         // ignorable entries. Yes, could have done that directly, but trying to
         // show process not shortest method
         for ($a = 0; $a < mb_strlen($alphabetIgnore) - 1; $a++) {
-            $alphabet = mb_ereg_replace("[" . mb_substr($alphabetIgnore, $a) . "]",
-                                        "", $alphabet);
+            $alphabet = mb_ereg_replace("[" . mb_substr($alphabetIgnore, $a) .
+                                        "]", "", $alphabet);
         }
     }
     return $alphabet;
@@ -1230,8 +1272,8 @@ function encodeNumbers($text)
 {
     for ($number = 0; $number <= 9; $number++) {
         $text = str_replace(strval($number), PLACEHOLDER_НЦ .
-                            strval($number) . strval($number) . strval($number) .
-                            PLACEHOLDER_НЦ, $text);
+                            strval($number) . strval($number) .
+                            strval($number) .PLACEHOLDER_НЦ, $text);
     }
     // Also change PLACEHOLDER_№
     $text = str_replace("№", PLACEHOLDER_№, $text);

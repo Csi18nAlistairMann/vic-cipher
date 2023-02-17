@@ -114,7 +114,7 @@ RV=$?
 if [ "$RVE" != "$TEST_CIPHERTEXT" ]; then
     echo "Encipher fails successfully"
 else
-    echo "Encipher fails when it shouldn't"
+    echo "Encipher succeeds when it shouldn't"
 
     echo "$RVE" >/tmp/1
     echo "--"
@@ -130,7 +130,7 @@ SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVD" != "$SQUASHED_PLAINTEXT" ]; then
     echo "Decipher fails successfully"
 else
-    echo "Decipher fails when it shouldn't"
+    echo "Decipher succeeds when it shouldn't"
 
     echo "$RVD" >/tmp/1
     echo "--"
@@ -140,19 +140,14 @@ else
 fi
 
 # Encipher, then decipher
-# This code doesn't work yet
-CIPHERTEXT=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=17 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
-echo $CIPHERTEXT
-/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=17 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt
-
 CIPHERTEXT=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=12 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
-RVC=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=12 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
+RVC=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=14 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVC" != "$SQUASHED_PLAINTEXT" ]; then
     echo "Chaining fails successfully"
 else
-    echo "Chaining fails when it shouldn't"
+    echo "Chaining succeeds when it shouldn't"
 
     echo "$RVC" >/tmp/1
     echo "--"

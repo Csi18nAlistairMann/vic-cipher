@@ -7,7 +7,7 @@ Alas I can't find an online copy of the chapter. While there are voluminous note
 # Measuring success
 ✓ Can encipher the book's test message ([See from "1. ПОЗДРАВЛЯЕМ" here](#russian))
 ✓ Can decipher the book's ciphertext ([See from "14546" here](#figure-1))
-☐ Can complete above from command line
+✓ Can complete above from command line
 ☐ Optional: if I find other reimplementations, can exchange messages with them
 I'm aware that there may be errors in the data I've used, so I'd like also to determine which if any are correct.
 
@@ -39,7 +39,7 @@ Book specifies that encipherment will be described.
     1. Width was again established at the derivations stage, height established after the checkerboard stage
     1. Top two rows were prepared at the derivation stage
     1. Create disruption areas based on "1" in second row, with area extending to right, and on following row starting one character to right, and so on. Once there are no more to move to right, skip a row, and repeat with "2" in the second row
-	    - Disruption starts right of * in each row in this document, but do not actually exist in the processing
+            - Disruption starts right of * in each row in this document, but do not actually exist in the processing
     3. Now read columns starting with "1" in second row of first transposition table and work down; when the column ends, continue with "2", and so on.
     4. Enter the stream at the first undisrupted space at top left, and continue along row until no more undisrupted spaces are available. When that happens, continue on next row at left side. Continue until there are no more undisrupted spaces available in the second transposition table
     5. Now return to the highest row with a disrupted space, and at its leftmost available slot continue to paste the stream, from left to right. With the row filled up, repeat this step at the new highest row with empty disrupted space.
@@ -74,6 +74,8 @@ Nothing wrong with that - they do get the length of the ciphertext to a five cha
 - Reassess the "214" issue
 - Chain encipher then decipher so as to check it works both ways
 - Move the mainloop into its own function and rewrite for style.
+- Add command line use for all but piping
+- Detect error in how short rows of tableaux are handled, and correct
 
 # Keys
 Book states four keys:
@@ -453,7 +455,7 @@ Copied by hand from book
 ```
 Line A  2 0 8 1 8
 Line B  3 9 1 9 4
-	---------
+        ---------
 Line C  9 1 7 2 4
 ```
 
