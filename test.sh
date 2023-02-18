@@ -58,7 +58,7 @@ TEST_CIPHERTEXT="14546 36056 64211 08919 18710 71187 71215 02906 66036 10922
 # These tests should pass
 
 # Encipher
-RVE=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
+RVE=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
 RV=$?
 if [ "$RVE" = "$TEST_CIPHERTEXT" ]; then
     echo "Encipher passes"
@@ -73,7 +73,7 @@ else
 fi
 
 # Decipher
-RVD=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$TEST_CIPHERTEXT" --decrypt`
+RVD=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$TEST_CIPHERTEXT" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVD" = "$SQUASHED_PLAINTEXT" ]; then
@@ -89,8 +89,8 @@ else
 fi
 
 # Encipher, then decipher
-CIPHERTEXT=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
-RVC=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
+CIPHERTEXT=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
+RVC=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVC" = "$SQUASHED_PLAINTEXT" ]; then
@@ -109,7 +109,7 @@ fi
 # These tests should fail
 
 # Encipher
-RVE=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=2 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
+RVE=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=2 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
 RV=$?
 if [ "$RVE" != "$TEST_CIPHERTEXT" ]; then
     echo "Encipher fails successfully"
@@ -124,7 +124,7 @@ else
 fi
 
 # Decipher
-RVD=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/1/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$TEST_CIPHERTEXT" --decrypt`
+RVD=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/1/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --message="$TEST_CIPHERTEXT" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVD" != "$SQUASHED_PLAINTEXT" ]; then
@@ -140,8 +140,8 @@ else
 fi
 
 # Encipher, then decipher
-CIPHERTEXT=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=12 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
-RVC=`/usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=14 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
+CIPHERTEXT=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=12 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM" --message="$TEST_PLAINTEXT"`
+RVC=`/usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=14 --padding="2142" --poem="$TEST_POEM" --message="$CIPHERTEXT" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVC" != "$SQUASHED_PLAINTEXT" ]; then
@@ -160,7 +160,7 @@ fi
 # These tests should succeed using piped in messages
 
 # Encipher
-RVE=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
+RVE=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
 RV=$?
 if [ "$RVE" = "$TEST_CIPHERTEXT" ]; then
     echo "Encipher w/ pipe passes"
@@ -179,7 +179,7 @@ fi
 
 # Decipher
 
-RVD=`echo -n "$TEST_CIPHERTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
+RVD=`echo -n "$TEST_CIPHERTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVD" = "$SQUASHED_PLAINTEXT" ]; then
@@ -195,8 +195,8 @@ else
 fi
 
 # Encipher, then decipher
-CIPHERTEXT=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
-RVC=`echo -n $CIPHERTEXT | /usr/bin/php ./vic-poc.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
+CIPHERTEXT=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --swappos=148 --poem="$TEST_POEM"`
+RVC=`echo -n $CIPHERTEXT | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
 if [ "$RVC" = "$SQUASHED_PLAINTEXT" ]; then
