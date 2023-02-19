@@ -11,6 +11,50 @@ class Checkerboard
     // Associative array such that it maps characters to their coords
     private $cbAarr = array();
     private $padding;
+    private $language;
+
+    //
+    // The padding can be numeric eg "2142", or alphabetic eg "QGQG" such that
+    // the code needs to convert them first. Doing this ensures an unlikely
+    // combo of letters forms the padding even though the Checkerboard isn't
+    // known
+    public function getPadding()
+    {
+        // If the padding is wholly numeric, return it.
+        // If not convert the alphabetic form to numeric according to the
+        // current checkerboard, store it for next time, AND then return it
+        if (strval(intval($this->padding)) !== $this->padding) {
+            $padding = '';
+            for ($a = 0; $a < mb_strlen($this->padding); $a++) {
+                $padding .= $this->checkerBoardSubstituteOne($this->padding[$a]);
+            }
+            $this->padding = $padding;
+        }
+        return $this->padding;
+    }
+
+    //
+    // Language refers to the name of the alphabet. "en" ends up as English
+    // whether user uses British English or not.
+    public function setPadding($val, $language) {
+        // If no padding given ...
+        if ($val === "") {
+            // "2 1 4" seemed to have been chosen to be unlikely. The following
+            // seeks to name the unlikely character combinations in each
+            // language
+            switch ($language) {
+            case LANG_ROMAN:
+                $val = 'QGQG';
+                break;
+            case LANG_CYRILLIC:
+                $val = 'ЭАЭА';
+                break;
+            default:
+            }
+        }
+        $this->padding = $val;
+        $this->language = $language;
+    }
 
     //
     // fillBody() takes an array of characters and places them in the
@@ -55,13 +99,13 @@ class Checkerboard
     // processing chars / key / usable alphabet / 'repeat' symbol. By using this
     // order we can arrange later characters around earlier ones, per the book
     public function __construct($width, $height, $controlChars, $derivations,
-                                $padding)
+                                $padding, $language)
     {
         // Unlock the class for editing (used to support a quick lookup)
         $this->editable = true;
 
         // Store the padding to be used later
-        $this->padding = $padding;
+        $this->setPadding($padding, $language);
 
         // PHP doesn't have constrained arrays, so we'll fake one
         $this->cb = array_fill(0, $width,
@@ -179,13 +223,13 @@ class Checkerboard
 
         // We now know the final ciphertext length, so pad it out to a fit the
         // five groups scheme
-        $output .= substr($this->padding, 0,
+        $output .= substr($this->getPadding(), 0,
                           FIVEGROUP_NUM - (strlen($output) % FIVEGROUP_NUM));
         return $output;
     }
 
     // Turn the coords back into plaintext
-    public function unsubstitutions($stream, $padding)
+    public function unsubstitutions($stream)
     {
         // Make up an associative array of the coords with their various
         // plaintext equivalents
@@ -212,6 +256,7 @@ class Checkerboard
         // There's no nice way to do this: this bodge removes the padding text,
         // try to remove successively shorter matches. It's possible there's
         // no padding, but not possible for more than four
+        $padding = $this->getPadding();
         if (substr($stream, -4) === $padding) {
             $stream = substr($stream, 0, -4);
         } elseif (substr($stream, -3) === substr($padding, 0, 3)) {
@@ -326,5 +371,24 @@ class Checkerboard
             }
         }
         return $rv;
+    }
+
+    //
+    // Display the completed checkerboard
+    private function debugShowCheckerboard()
+    {
+        for ($row = 0; $row < sizeof($this->cb); $row++) {
+            for ($col = 0; $col < sizeof($this->cb[$row]); $col++) {
+                if ($this->cb[$row][$col] === CHECKERBOARD_DEFAULT_VAL) {
+                    $char = ' ';
+                } else {
+                    $char = $this->cb[$row][$col];
+                }
+                $char = mb_substr($char . '   ', 0, 3);
+                echo $char;
+            }
+            echo "\n";
+        }
+        exit;
     }
 }

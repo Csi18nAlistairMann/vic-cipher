@@ -25,6 +25,7 @@ $key1 = '';
 $key2 = '';
 $key3 = '';
 $key4 = '';
+$language = LANG_CYRILLIC;
 $message = '';
 $direction = ENCIPHER;
 
@@ -41,6 +42,7 @@ $k2_opt = intval($k2_opt);
 $k3_opt = handleArgument('', 'key3', ':', $key3);
 $k4_opt = handleArgument('', 'key4', ':', $key4);
 $k4_opt = intval($k4_opt);
+$l_opt = handleArgument('', 'lang', ':', $language);
 $m_opt = handleArgument('', 'message', ':', $message);
 $n_opt = handleArgument('', 'msgnum', ':', '');
 $n_opt = substr($n_opt . MESSAGE_NUMBER_KEYGROUP, 0, 5);
@@ -58,5 +60,5 @@ $pipedin = stream_get_contents(fopen("php://stdin", "r"));
 $m_opt = ($pipedin === "") ? $m_opt : $pipedin;
 
 mainloop($a_opt, $b_opt, $k1_opt, $k2_opt, $k3_opt, $k4_opt, $n_opt, $d_opt,
-         $s_opt, $p_opt, $m_opt);
+         $s_opt, $p_opt, $m_opt, $l_opt);
 exit;

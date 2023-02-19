@@ -29,6 +29,9 @@ define('TABLEAUX_TYPE_1', 1);
 define('TABLEAUX_TYPE_2', 2);
 define('FIVEGROUP_NUM', 5); // There are five digits in each Group of 5
 define('CIPHERTEXT_PAGEWIDTH', 10); // There are ten Groups of 5 per row
+// Languages. This is about the alphabet so en-GB and en-US are identical
+define('LANG_CYRILLIC', 'ru');
+define('LANG_ROMAN', 'en');
 
 // Handle command line
 // Forced for now

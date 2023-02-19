@@ -178,7 +178,6 @@ fi
 # These tests should pass
 
 # Decipher
-
 RVD=`echo -n "$TEST_CIPHERTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --padding="2142" --poem="$TEST_POEM" --decrypt`
 SQUASHED_PLAINTEXT=`echo "$TEST_PLAINTEXT" | tr -d '[:space:]'`
 SQUASHED_PLAINTEXT=`echo "MsgID: 20818"; echo "$SQUASHED_PLAINTEXT"`
@@ -209,4 +208,26 @@ else
     echo "$SQUASHED_PLAINTEXT" >/tmp/2
 
     diff /tmp/1 /tmp/2
+fi
+
+#
+# These tests exercise that the swappos will be calculated at a random position
+# if not passed in. Run it a few times and if any one of them is different
+# we'll count that as a success, otherwise not a failure but a warning
+CIPHERTEXT1=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --poem="$TEST_POEM"`
+CIPHERTEXT2=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --poem="$TEST_POEM"`
+CIPHERTEXT3=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --poem="$TEST_POEM"`
+CIPHERTEXT4=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --poem="$TEST_POEM"`
+CIPHERTEXT5=`echo -n "$TEST_PLAINTEXT" | /usr/bin/php ./vic.php --alphabet="$ALPHABET" --alphabet-ignore="$ALPHABET_IGNORE" --key1="СНЕГОПА" --key2=3 --key3="3/9/1945" --key4=13 --msgnum="20818" --padding="2142" --poem="$TEST_POEM"`
+PASS="-1"
+if [ "$CIPHERTEXT1" != "$CIPHERTEXT2" ] ||
+       [ "$CIPHERTEXT2" != "$CIPHERTEXT3" ] ||
+       [ "$CIPHERTEXT3" != "$CIPHERTEXT4" ] ||
+       [ "$CIPHERTEXT4" != "$CIPHERTEXT5" ]; then
+    PASS="0"
+fi
+if [ "$PASS" = "0" ]; then
+    echo "Random swap position passes"
+else
+    echo "Warning: Random swap position saw five runs all the same"
 fi

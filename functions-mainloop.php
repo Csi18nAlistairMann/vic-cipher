@@ -29,7 +29,7 @@ function encipher($plaintext, $swappos, $d, $cb, $tt1, $tt2, $msgnumKeygroup)
 }
 
 // Decipher
-function decipher($padding, $cb, $tt1, $tt2, $ciphertextArr)
+function decipher($cb, $tt1, $tt2, $ciphertextArr)
 {
     // Decipher
     $ciphertextStr = FiveDigitGroups::fiveGroupsArr2Str($ciphertextArr);
@@ -37,7 +37,7 @@ function decipher($padding, $cb, $tt1, $tt2, $ciphertextArr)
     $undisruptedStream = $tt2->undisruptTableaux();
     $tt1->fillTableauxDuringDecrypt($undisruptedStream);
     $fig2stream = $tt1->readOutByRows();
-    $plaintextStr1 = $cb->unsubstitutions($fig2stream, $padding);
+    $plaintextStr1 = $cb->unsubstitutions($fig2stream);
     $plaintext = ($plaintextStr1 === false)
         ? false
         : unswapHalves($plaintextStr1);
@@ -47,7 +47,7 @@ function decipher($padding, $cb, $tt1, $tt2, $ciphertextArr)
 // With the command line dealt with, now get the proper work done
 function mainloop($alphabet, $alphabetIgnore, $key1, $key2, $key3, $key4,
                   $msgnumKeygroup, $direction, $randomSwapPos, $padding,
-                  $message)
+                  $message, $language)
 {
     $alphabet_usable = constructUsableAlphabet($alphabet, $alphabetIgnore);
 
@@ -65,7 +65,8 @@ function mainloop($alphabet, $alphabetIgnore, $key1, $key2, $key3, $key4,
     $tt1 = new TranspositionTableaux(TABLEAUX_TYPE_1, $d);
     $tt2 = new TranspositionTableaux(TABLEAUX_TYPE_2, $d);
     $cb = new Checkerboard(VIC_CHECKERBOARD_HEIGHT, VIC_CHECKERBOARD_WIDTH,
-                           CHECKERBOARD_CONTROL_CHARS, $d, $padding);
+                           CHECKERBOARD_CONTROL_CHARS, $d, $padding,
+                           $language);
 
     // Process
     $rv = 0;
@@ -87,7 +88,7 @@ function mainloop($alphabet, $alphabetIgnore, $key1, $key2, $key3, $key4,
             $d->doDerivations($alphabet_usable, $key1, $key2, $key3, $key4,
                               $msgnumKeygroup);
         }
-        $deciphered = decipher($padding, $cb, $tt1, $tt2, $ciphertextArr);
+         $deciphered = decipher($cb, $tt1, $tt2, $ciphertextArr);
         if ($deciphered === false) {
             echo BAD_UNSUBSTITUTIONS_ERROR;
         } else {

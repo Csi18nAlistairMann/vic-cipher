@@ -79,6 +79,8 @@ Nothing wrong with that - they do get the length of the ciphertext to a five cha
 - Add handling for a piped-in message
 - Migrate Classes, Functions, Defines to their own files
 - Adapt the proof-of-concept to run without internal test mode
+- Expand project to handle Roman as well as Cyrillic
+- Handle padding such that characters rather than coords may be passed in
 
 # Keys
 Book states four keys:

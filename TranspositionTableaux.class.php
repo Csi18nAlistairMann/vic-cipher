@@ -51,6 +51,17 @@ class TranspositionTableaux
     }
 
     //
+    // I'm sure it isn't ideal but the disruption table could be shorter than
+    // the tableaux: extend the former to match "as if" there's no disruption
+    private function disruptionTableExpand() {
+        $r = ($this->height - sizeof($this->disruption)) + 2;
+        if ($r > 0) {
+            $this->disruption = array_merge($this->disruption,
+                                            array_fill(0, $r, $this->width));
+        }
+    }
+
+    //
     // The two transposition tableaux fill up in different ways - this method
     // implements both
     public function fillTableauxDuringEncrypt($stream)
@@ -72,6 +83,9 @@ class TranspositionTableaux
         } elseif ($this->type === TABLEAUX_TYPE_2) {
             // Not so straightforward: left to right, top to bottom in the areas
             // without disruption, then repeat in the areas with disruption
+
+	    // Disruption table should be at least as long as tableaux
+            $this->disruptionTableExpand();
 
             // The last line or "short row" is handled differently. Calculate
             // how much data it holds
@@ -126,6 +140,9 @@ class TranspositionTableaux
     // available cell in row[2]
     public function undisruptTableaux()
     {
+	// Disruption table should be at least as long as tableaux
+        $this->disruptionTableExpand();
+
         $stream = '';
         $row = 2;
         // Undisrupted areas first (always starts at left,

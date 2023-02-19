@@ -15,7 +15,11 @@ class FiveDigitGroups
     public function __construct($message, $index)
     {
         $cta = $this->stream2Arr($message);
-        $idx = sizeof($cta) - $index;
+        if ($index === "0") {
+            $idx = sizeof($cta) - 10;
+        } else {
+            $idx = sizeof($cta) - $index;
+        }
         $this->msgnumKeygroup = $cta[$idx];
         $this->ciphertextArr = array_merge(array_slice($cta, 0, $idx),
                                            array_slice($cta, $idx + 1));
@@ -46,6 +50,9 @@ class FiveDigitGroups
 
         // Insert message number
         $sz = sizeof($page);
+        $position = intval($position);
+        if ($position === 0)
+            $position = 10;
         $position--;
         $page = array_merge(array_slice($page, 0, $sz - $position),
                             array($keygroup),

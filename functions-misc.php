@@ -70,7 +70,7 @@ function bigConvert2Sequential($numArr)
     // Find the maximum value used
     $sz = sizeof($numArr);
     $max = 0;
-    for ($a = 1; $a < $sz; $a++) {
+    for ($a = 0; $a < $sz; $a++) {
         if ($numArr[$a] === 0) {
             // Max digit 0 treated as 10, so gets placed last
             $numArr[$a] = 10;
@@ -118,7 +118,7 @@ function chainAddition($digitsArr, $length)
 // where that first half now starts
 function swapHalves($text, $position = null)
 {
-    if ($position === null) {
+    if ($position === -1) {
         $len = mb_strlen($text);
         $position = random_int(0, $len - 1);
     }
