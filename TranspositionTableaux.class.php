@@ -53,7 +53,8 @@ class TranspositionTableaux
     //
     // I'm sure it isn't ideal but the disruption table could be shorter than
     // the tableaux: extend the former to match "as if" there's no disruption
-    private function disruptionTableExpand() {
+    private function disruptionTableExpand()
+    {
         $r = ($this->height - sizeof($this->disruption)) + 2;
         if ($r > 0) {
             $this->disruption = array_merge($this->disruption,
@@ -84,7 +85,7 @@ class TranspositionTableaux
             // Not so straightforward: left to right, top to bottom in the areas
             // without disruption, then repeat in the areas with disruption
 
-	    // Disruption table should be at least as long as tableaux
+            // Disruption table should be at least as long as tableaux
             $this->disruptionTableExpand();
 
             // The last line or "short row" is handled differently. Calculate
@@ -140,7 +141,7 @@ class TranspositionTableaux
     // available cell in row[2]
     public function undisruptTableaux()
     {
-	// Disruption table should be at least as long as tableaux
+        // Disruption table should be at least as long as tableaux
         $this->disruptionTableExpand();
 
         $stream = '';

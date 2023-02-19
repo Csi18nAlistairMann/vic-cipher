@@ -36,7 +36,8 @@ class Checkerboard
     //
     // Language refers to the name of the alphabet. "en" ends up as English
     // whether user uses British English or not.
-    public function setPadding($val, $language) {
+    public function setPadding($val, $language)
+    {
         // If no padding given ...
         if ($val === "") {
             // "2 1 4" seemed to have been chosen to be unlikely. The following
